@@ -1,0 +1,36 @@
+experiment:
+  set_sizes: [1, 2, 4, 6]
+  n_trials: 100
+  random_seed: 42
+
+data:
+  n_samples_per_item: 1000
+  loc_std: 10.0
+  color_std: 10.0
+  loc_encoding_noise_std: 0.0
+  color_encoding_noise_std: 0.0
+
+model:
+  inducing_grid_size: 10
+  loc_lengthscale: 10.0
+  color_lengthscale: 10.0
+  learn_inducing_locations: true
+
+likelihood:
+  noise_variance: 0.000001
+
+training:
+  encoding_epochs: 100
+  maintenance_epochs: 100
+  cue_start_epoch: 50              # Start applying cue
+  encoding_lr: 0.05
+  maintenance_lr: 0.01
+
+attention:
+  spatial_std: 30.0
+  attended_gain: 2.0   # Enhancement gain at cued location (1.0 = neutral baseline)
+
+output:
+  log_every: 10
+  save_animations: true
+  save_plots: true
