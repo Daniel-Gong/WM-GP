@@ -5,10 +5,32 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import matplotlib.cm as cm
 import gpytorch
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 import pandas as pd
 
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+_COLORWHEEL: Optional[np.ndarray] = None  # cached (360, 3) float32 in [0, 1]
+
+def _load_colorwheel() -> np.ndarray:
+    """Return the 360×3 colorwheel array (RGB in [0,1]), loaded once from colorwheel.csv."""
+    global _COLORWHEEL
+    if _COLORWHEEL is not None:
+        return _COLORWHEEL
+    csv_path = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', 'colorwheel.csv'))
+    df = pd.read_csv(csv_path, index_col=0)          # columns: R, G, B  (0-255 ints)
+    arr = df[['R', 'G', 'B']].values.astype(np.float32) / 255.0  # (360, 3)
+    _COLORWHEEL = arr
+    return _COLORWHEEL
+
+def _item_colors_from_wheel(color_degrees) -> np.ndarray:
+    """Map item color values in [-180, 179] to colorwheel RGB. Returns (n, 3) array."""
+    wheel = _load_colorwheel()
+    indices = [int(c) + 180 for c in color_degrees]   # [-180,179] → [0,359]
+    indices = [max(0, min(359, idx)) for idx in indices]
+    return np.array([wheel[idx] for idx in indices])
+
 
 def plot_gp_surface_2d(model, likelihood, items, epoch, prefix="", save_dir="visualizations", filename="gp_surface_final.png"):
     """
@@ -42,10 +64,12 @@ def plot_gp_surface_2d(model, likelihood, items, epoch, prefix="", save_dir="vis
     )
     plt.colorbar(cax, label='Predictive Mean (Memory Strength)')
     
-    # Plot true items
+    # Plot true items – colour each star with its actual colorwheel colour
     true_locs = [i[0] for i in items]
     true_cols = [i[1] for i in items]
-    ax.scatter(true_locs, true_cols, c='r', marker='*', s=200, label='Encoded Items', edgecolors='white')
+    item_rgb = _item_colors_from_wheel(true_cols)
+    ax.scatter(true_locs, true_cols, c=item_rgb, marker='*', s=200,
+               label='Encoded Items', edgecolors='white', linewidths=0.8)
     
     # Plot inducing points
     if hasattr(model, 'variational_strategy'):
@@ -57,7 +81,6 @@ def plot_gp_surface_2d(model, likelihood, items, epoch, prefix="", save_dir="vis
     ax.set_ylabel("Color (deg)")
     ax.set_xlim([-180.0, 180.0])
     ax.set_ylim([-180.0, 180.0])
-    ax.legend(loc='upper right')
     
     os.makedirs(save_dir, exist_ok=True)
     plt.savefig(os.path.join(save_dir, filename), dpi=150)
@@ -68,31 +91,31 @@ def plot_training_trajectories(history: Dict, save_dir="visualizations",filename
     Plots the trajectories of GP Hyperparameters (Lengthscales, Noise) 
     and ELBO Losses over the training epochs.
     """
-    fig, axs = plt.subplots(2, 2, figsize=(14, 10))
+    fig, axs = plt.subplots(1, 3, figsize=(18, 5))
     
     # Plot 1: Encoding Loss
-    axs[0, 0].plot(history.get('encoding_loss', []), color='blue', label='Encoding (-ELBO)')
-    axs[0, 0].set_title("Variational ELBO (Encoding)")
-    axs[0, 0].set_xlabel("Epoch")
-    axs[0, 0].set_ylabel("Loss")
-    axs[0, 0].legend()
+    axs[0].plot(history.get('encoding_loss', []), color='blue', label='Encoding (-ELBO)')
+    axs[0].set_title("Variational ELBO (Encoding)")
+    axs[0].set_xlabel("Epoch")
+    axs[0].set_ylabel("Loss")
+    axs[0].legend()
     
     # Plot 2: Maintenance Loss (if any)
     if 'maintenance_loss' in history and len(history['maintenance_loss']) > 0:
-        axs[0, 1].plot(history['maintenance_loss'], color='orange', label='Maint (KL + Attn)')
-        axs[0, 1].set_title("Maintenance Loss")
+        axs[1].plot(history['maintenance_loss'], color='orange', label='Maint (KL + Attn)')
+        axs[1].set_title("Maintenance Loss")
     else:
-        axs[0, 1].text(0.5, 0.5, 'No Maintenance Run', ha='center')
-    axs[0, 1].set_xlabel("Epoch")
+        axs[1].text(0.5, 0.5, 'No Maintenance Run', ha='center')
+    axs[1].set_xlabel("Epoch")
     
     # Plot 3: Specific Model Parameter Trajectories
     epochs = len(history.get('loc_lengthscale', []))
     if epochs > 0:
-        axs[1, 0].plot(history['loc_lengthscale'], label='Location LS', color='red')
-        axs[1, 0].plot(history['color_lengthscale'], label='Color LS', color='green')
-        axs[1, 0].set_title("Periodic Lengthscales")
-        axs[1, 0].set_xlabel("Epoch")
-        axs[1, 0].legend()
+        axs[2].plot(history['loc_lengthscale'], label='Location LS', color='red')
+        axs[2].plot(history['color_lengthscale'], label='Color LS', color='green')
+        axs[2].set_title("Periodic Lengthscales")
+        axs[2].set_xlabel("Epoch")
+        axs[2].legend()
 
     plt.tight_layout()
     os.makedirs(save_dir, exist_ok=True)
@@ -206,7 +229,7 @@ def create_gp_surface_3d_gif(history_surfaces: List[np.ndarray], history_ind_pts
         # Plot inducing points in 3D
         ind_pts = history_ind_pts[frame]
         ind_vals = history_ind_vals[frame]
-        ax.scatter(ind_pts[:, 0], ind_pts[:, 1], ind_vals, color='red', s=50, label='Ind. Pts', depthshade=False)
+        ax.scatter(ind_pts[:, 0], ind_pts[:, 1], ind_vals, color='red', s=30, label='Ind. Pts', depthshade=False)
         
         # Plot items at Z=0 for reference
         true_locs = [i[0] for i in items]
@@ -302,13 +325,12 @@ def plot_error_distributions(errors_per_set_size: dict, save_dir="visualizations
         print(f"  Saved error distribution for N={ss}  (SD={sd:.2f}°)")
 
     # ── 2. Combined panel (all set sizes side by side) ───────────────────────
-    ncols = min(n, 3)
-    nrows = (n + ncols - 1) // ncols
+    nrows, ncols = 2, 2
     fig, axes = plt.subplots(nrows, ncols, figsize=(5 * ncols, 4 * nrows), squeeze=False)
 
     bins = np.linspace(-180.0, 180.0, 37)
     for idx, ss in enumerate(set_sizes):
-        row, col = divmod(idx, ncols)
+        row, col = divmod(idx, ncols)  # ncols=2 → 2x2 grid
         ax  = axes[row][col]
         errs = np.array(errors_per_set_size[ss])
         sd   = np.std(errs)

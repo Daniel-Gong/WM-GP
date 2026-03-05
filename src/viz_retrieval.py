@@ -26,10 +26,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import gpytorch
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from typing import List, Tuple, Optional
 
 from generator import generate_items
 from simulation import run_simulation_trial
+from visualizations import _load_colorwheel, _item_colors_from_wheel
 import yaml
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -37,6 +39,7 @@ import yaml
 # ──────────────────────────────────────────────────────────────────────────────
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 
 def _load_config(path: Optional[str] = None) -> dict:
@@ -58,8 +61,8 @@ def plot_retrieval_mechanism(
     n_color_samples: int = 360,
     surface_res: int = 60,
     epoch_label: str = "Final",
-    title: str = "GP Memory Retrieval",
-    save_path: Optional[str] = None,
+    filename: str = "gp_retrieval.png",
+    save_dir: Optional[str] = None,
 ) -> plt.Figure:
     """
     Plot a two-panel figure illustrating the GP memory retrieval mechanism.
@@ -81,7 +84,9 @@ def plot_retrieval_mechanism(
         Grid resolution of the 2-D surface heatmap (Panel 1).
     epoch_label : str
         Label appended to the figure suptitle.
-    save_path : str, optional
+    filename : str
+        Filename of the saved figure.
+    save_dir : str, optional
         If given, save the figure here; otherwise show interactively.
 
     Returns
@@ -124,11 +129,6 @@ def plot_retrieval_mechanism(
         figsize=(14, 6),
         gridspec_kw={"width_ratios": [1.15, 1]},
     )
-    fig.suptitle(
-        f"{title}  |  Epoch: {epoch_label}  |  Cued item #{cue_item_idx + 1}"
-        f"  (loc={cue_loc:.1f}°, true color={cue_color:.1f}°)",
-        fontsize=13, fontweight="bold", y=1.01,
-    )
 
     # ════════════════════════════════════════════════════════════════════════
     # Panel 1 – GP predictive mean surface
@@ -148,17 +148,20 @@ def plot_retrieval_mechanism(
     # True item positions
     true_locs  = [i[0] for i in items]
     true_cols  = [i[1] for i in items]
+    item_rgb  = _item_colors_from_wheel(true_cols)
+    cued_rgb  = _item_colors_from_wheel([cue_color])
+
     ax1.scatter(
         true_locs, true_cols,
-        c="red", marker="*", s=250, zorder=5,
+        c=item_rgb, marker="*", s=250, zorder=5,
         label="Items", edgecolors="white", linewidths=0.5,
     )
 
-    # Highlight cued item with a distinct marker
+    # Highlight cued item with a distinct black edge
     ax1.scatter(
         [cue_loc], [cue_color],
-        c="yellow", marker="*", s=350, zorder=6,
-        edgecolors="black", linewidths=0.8, label=f"Cued item #{cue_item_idx + 1}",
+        c=cued_rgb, marker="*", s=350, zorder=6,
+        edgecolors="white", linewidths=1.5, label=f"Cued item #{cue_item_idx + 1}",
     )
 
     # Inducing points
@@ -172,7 +175,7 @@ def plot_retrieval_mechanism(
     # ── vertical dotted cue line ──────────────────────────────────────────────
     ax1.axvline(
         x=cue_loc,
-        color="gold", linestyle=":", linewidth=2.2, zorder=7,
+        color="white", linestyle=":", linewidth=2.2, zorder=7,
         label=f"Cue loc {cue_loc:.1f}°",
     )
 
@@ -181,7 +184,6 @@ def plot_retrieval_mechanism(
     ax1.set_ylabel("Color (°)", fontsize=10)
     ax1.set_xlim([-180.0, 180.0])
     ax1.set_ylim([-180.0, 180.0])
-    ax1.legend(fontsize=8, loc="upper right")
 
     # ════════════════════════════════════════════════════════════════════════
     # Panel 2 – Retrieval profile: GP mean along color axis at cue location
@@ -194,35 +196,21 @@ def plot_retrieval_mechanism(
     )
     ax2.fill_between(color_np, means_np, alpha=0.12, color="#2196F3")
 
-    # True color vertical line
+    # True color vertical line — coloured with its real hue
+    _cue_rgb  = tuple(_item_colors_from_wheel([cue_color])[0])
     ax2.axvline(
         x=cue_color,
-        color="red", linestyle="--", linewidth=1.8, zorder=5,
+        color=_cue_rgb, linestyle="--", linewidth=2.0, zorder=5,
         label=f"True color {cue_color:.1f}°",
     )
 
-    # Argmax (retrieved color) annotation
+    # Argmax (retrieved color) — coloured with its real hue
     peak_val = means_np[best_idx.item()]
+    _best_rgb = tuple(_item_colors_from_wheel([best_color])[0])
     ax2.axvline(
         x=best_color,
-        color="gold", linestyle=":", linewidth=2.2, zorder=6,
+        color=_best_rgb, linestyle=":", linewidth=2.2, zorder=6,
         label=f"Retrieved (argmax) {best_color:.1f}°",
-    )
-
-    # Arrow annotation at the peak
-    arrow_yoffset = (means_np.max() - means_np.min()) * 0.18
-    ax2.annotate(
-        f"argmax\n{best_color:.1f}°",
-        xy=(best_color, peak_val),
-        xytext=(best_color + 25 if best_color < 120 else best_color - 25,
-                peak_val + arrow_yoffset),
-        fontsize=9, color="darkgoldenrod", fontweight="bold",
-        ha="center",
-        arrowprops=dict(
-            arrowstyle="->",
-            color="darkgoldenrod",
-            lw=1.5,
-        ),
     )
 
     # Mark the peak with a dot
@@ -236,12 +224,37 @@ def plot_retrieval_mechanism(
         r"$\hat{c} = \arg\max_c\; \mu_{GP}(\ell_{cue},\, c)$",
         fontsize=11,
     )
-    ax2.set_xlabel("Candidate color (°)", fontsize=10)
     ax2.set_ylabel("GP posterior mean $\\mu$", fontsize=10)
     ax2.set_xlim([-180.0, 180.0])
-    ax2.set_xticks([-180, -90, 0, 90, 180])
+    ax2.set_xticks([])          # ticks moved to colorwheel strip below
+    ax2.set_xlabel("")          # label moved to colorwheel strip below
     ax2.legend(fontsize=8, loc="upper right")
     ax2.grid(True, linestyle="--", alpha=0.4)
+
+    # ── colorwheel strip below ax2 x-axis ────────────────────────────────────
+    #   The strip is an (1 × 360) RGB image spanning [-180, 180].
+    #   We use an inset_axes anchored to ax2 so it stays aligned with the plot.
+    cw = _load_colorwheel()                       # (360, 3)
+    cw_img = cw[np.newaxis, :, :]                 # (1, 360, 3) for imshow
+
+    divider = make_axes_locatable(ax2)
+    ax_cw = divider.append_axes("bottom", size="8%", pad=0.0)
+    ax_cw.imshow(
+        cw_img,
+        aspect="auto",
+        extent=[-180, 180, 0, 1],
+        origin="lower",
+        interpolation="bilinear",
+    )
+    # Mirror the x-ticks of ax2 but hide y-axis
+    ax_cw.set_xlim(-180, 180)
+    ax_cw.set_xticks([-180, -90, 0, 90, 180])
+    ax_cw.set_yticks([])
+    ax_cw.set_xlabel("Candidate color (°)", fontsize=10)
+
+    # Vertical markers on the strip matching the main panel lines
+    ax_cw.axvline(x=cue_color,  color=_item_colors_from_wheel([cue_color])[0],  linestyle="--", linewidth=2.0)
+    ax_cw.axvline(x=best_color, color=_item_colors_from_wheel([best_color])[0], linestyle=":",  linewidth=2.0)
 
     # Annotate error
     error = best_color - cue_color
@@ -256,12 +269,12 @@ def plot_retrieval_mechanism(
 
     fig.tight_layout()
 
-    if save_path:
-        os.makedirs(os.path.dirname(os.path.abspath(save_path)), exist_ok=True)
-        plt.savefig(save_path, dpi=150, bbox_inches="tight")
-        print(f"Saved to: {save_path}")
-    else:
-        plt.show()
+    if save_dir:
+        os.makedirs(os.path.dirname(os.path.abspath(save_dir)), exist_ok=True)
+        plt.savefig(os.path.join(save_dir, filename), dpi=200)
+        print(f"Saved to: {save_dir}")
+    
+    plt.show()
 
     return fig
 
@@ -276,15 +289,15 @@ if __name__ == "__main__":
 
     n_items = 3
     print(f"Generating {n_items} items …")
-    items = generate_items(n_items, seed=42)
+    items = generate_items(n_items)
     print(f"  Items: {items}")
+    cue_item_idx = 0
 
-    print("Running simulation trial (encoding only) …")
+    print("Running simulation trial…")
     model, likelihood, history = run_simulation_trial(
         items,
         config=cfg,
-        maintenance_epochs=0,    # skip maintenance for speed
-        track_visuals=False,
+        cued_item_idx=cue_item_idx,
     )
 
     print("Plotting retrieval mechanism …")
@@ -292,7 +305,8 @@ if __name__ == "__main__":
         model,
         likelihood,
         items,
-        cue_item_idx=0,
+        cue_item_idx=cue_item_idx,
         epoch_label="Final",
-        title="GP Memory Retrieval Demo",
+        filename="gp_retrieval.png",
+        save_dir="visualizations",
     )

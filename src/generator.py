@@ -48,7 +48,7 @@ def generate_items(
     # Choose n_items slots without replacement and assign random colors
     chosen_indices = np.random.choice(n_slots, size=n_items, replace=False)
     locs   = [slot_positions[i] for i in chosen_indices]
-    colors = [np.random.uniform(-180.0, 180.0) for _ in range(n_items)]
+    colors = [int(np.random.uniform(-180.0, 180.0)) for _ in range(n_items)]
 
     return [(locs[i], colors[i]) for i in range(n_items)]
 
