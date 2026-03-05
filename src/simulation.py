@@ -155,14 +155,14 @@ def run_simulation_trial(
             
         if track_visuals:
             # Reconstruct 2x2 grid fast for tracking
-            locs = torch.linspace(-180.0, 180.0, 50, device=device)
-            cols = torch.linspace(-180.0, 180.0, 50, device=device)
+            locs = torch.linspace(-180.0, 180.0, 100, device=device)
+            cols = torch.linspace(-180.0, 180.0, 100, device=device)
             L, C = torch.meshgrid(locs, cols, indexing='ij')
             grid = torch.stack([L.flatten(), C.flatten()], dim=-1)
             
             with torch.no_grad():
                 preds = likelihood(model(grid))
-                hist_surfaces.append(preds.mean.view(50, 50).cpu().numpy())
+                hist_surfaces.append(preds.mean.view(100, 100).cpu().numpy())
                 ind_pts = model.variational_strategy.inducing_points.detach()
                 hist_ind_pts.append(ind_pts.cpu().numpy())
                 ind_preds = likelihood(model(ind_pts)).mean.detach()
@@ -246,5 +246,13 @@ def run_simulation_trial(
         vis.create_gp_surface_3d_gif(hist_surfaces, hist_ind_pts, hist_ind_vals, items, filename=f"gp_optimization_3d_N={len(items)}.gif")
         vis.plot_training_trajectories(history, filename=f"training_trajectories_N={len(items)}.png")
         vis.plot_gp_surface_2d(model, likelihood, items, epoch="Final", prefix="", filename=f"gp_surface_N={len(items)}.png")
+        vis.plot_item_retrieval_errors(
+            history,
+            items,
+            cued_item_idx=cued_item_idx,
+            cue_start_epoch=config['training'].get('cue_start_epoch') if cued_item_idx is not None else None,
+            filename=f"item_losses_N={len(items)}.png",
+        )
+        
         
     return model, likelihood, history

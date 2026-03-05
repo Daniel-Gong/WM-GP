@@ -7,6 +7,7 @@ import matplotlib.cm as cm
 import gpytorch
 from typing import Dict, List, Tuple, Optional
 import pandas as pd
+from scipy import stats
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -38,10 +39,11 @@ def plot_gp_surface_2d(model, likelihood, items, epoch, prefix="", save_dir="vis
     X-axis: Location (-pi, pi)
     Y-axis: Color (-pi, pi)
     """
+    print("Plotting 2D GP Surface...")
     model.eval()
     likelihood.eval()
     
-    res = 50
+    res = 100
     locs = torch.linspace(-180.0, 180.0, res, device=device)
     colors = torch.linspace(-180.0, 180.0, res, device=device)
     
@@ -91,6 +93,7 @@ def plot_training_trajectories(history: Dict, save_dir="visualizations",filename
     Plots the trajectories of GP Hyperparameters (Lengthscales, Noise) 
     and ELBO Losses over the training epochs.
     """
+    print("Plotting Training Trajectories...")
     fig, axs = plt.subplots(1, 3, figsize=(18, 5))
     
     # Plot 1: Encoding Loss
@@ -118,6 +121,96 @@ def plot_training_trajectories(history: Dict, save_dir="visualizations",filename
         axs[2].legend()
 
     plt.tight_layout()
+    os.makedirs(save_dir, exist_ok=True)
+    plt.savefig(os.path.join(save_dir, filename), dpi=200)
+    plt.close()
+
+def plot_item_retrieval_errors(
+    history: Dict,
+    items,
+    cued_item_idx: Optional[int] = None,
+    cue_start_epoch: Optional[int] = None,
+    save_dir: str = "visualizations",
+    filename: str = "item_losses.png",
+) -> None:
+    """
+    Two-panel figure showing per-item retrieval error over training epochs.
+
+    Panel 1 – Encoding phase:  unsigned retrieval error per item.
+    Panel 2 – Maintenance phase: unsigned retrieval error per item.
+                If cued_item_idx is not None, a vertical dashed line marks
+                cue_start_epoch in the maintenance panel.
+
+    Parameters
+    ----------
+    history : dict
+        Must contain 'unsigned_errors' (dict: item_idx -> list of floats),
+        'encoding_loss', and optionally 'maintenance_loss'.
+    items : list of (loc, color) tuples
+        Used to derive colorwheel colours for each item's line.
+    cued_item_idx : int or None
+        Index of the cued item (highlighted with thicker line).
+    cue_start_epoch : int or None
+        Epoch within maintenance at which the retrocue is applied.
+    save_dir : str
+        Directory to save the figure.
+    filename : str
+        Output filename.
+    """
+    n_enc  = len(history.get('encoding_loss', []))
+    n_maint = len(history.get('maintenance_loss', []))
+    n_total = n_enc + n_maint
+    errors  = history.get('unsigned_errors', {})
+
+    if not errors:
+        return   # nothing logged
+
+    item_colors_rgb = _item_colors_from_wheel([it[1] for it in items])
+
+    fig, (ax_enc, ax_maint) = plt.subplots(1, 2, figsize=(14, 5), sharey=False)
+
+    for i, errs in errors.items():
+        errs = np.array(errs)
+        rgb  = item_colors_rgb[i]
+        lw   = 2.5 if i == cued_item_idx else 1.5
+        ls   = '-'  if i == cued_item_idx else '--'
+        label = f"Item {i+1}" + (" ★ cued" if i == cued_item_idx else "")
+
+        enc_errs   = errs[:n_enc]   if n_enc   > 0 else np.array([])
+        maint_errs = errs[n_enc:]   if n_maint > 0 else np.array([])
+
+        if len(enc_errs):
+            ax_enc.plot(enc_errs, color=rgb, linewidth=lw, linestyle=ls, label=label)
+        if len(maint_errs):
+            ax_maint.plot(maint_errs, color=rgb, linewidth=lw, linestyle=ls, label=label)
+
+    # ── Encoding panel ──────────────────────────────────────────────────────
+    ax_enc.set_title("Encoding phase — retrieval error per item", fontsize=12)
+    ax_enc.set_xlabel("Epoch", fontsize=10)
+    ax_enc.set_ylabel("Unsigned error (°)", fontsize=10)
+    ax_enc.grid(True, linestyle='--', alpha=0.4)
+    ax_enc.legend(fontsize=9)
+
+    # ── Maintenance panel ───────────────────────────────────────────────────
+    ax_maint.set_title("Maintenance phase — retrieval error per item", fontsize=12)
+    ax_maint.set_xlabel("Epoch", fontsize=10)
+    ax_maint.set_ylabel("Unsigned error (°)", fontsize=10)
+    ax_maint.grid(True, linestyle='--', alpha=0.4)
+    ax_maint.legend(fontsize=9)
+
+    if cued_item_idx is not None and cue_start_epoch is not None and n_maint > 0:
+        ax_maint.axvline(
+            x=cue_start_epoch,
+            color='white', linestyle=':', linewidth=2.0,
+            label=f"Cue onset (epoch {cue_start_epoch})",
+        )
+        ax_maint.text(
+            cue_start_epoch + 0.5, ax_maint.get_ylim()[1] * 0.97,
+            "cue onset", fontsize=8, va='top', color='grey',
+        )
+        ax_maint.legend(fontsize=9)
+
+    fig.tight_layout()
     os.makedirs(save_dir, exist_ok=True)
     plt.savefig(os.path.join(save_dir, filename), dpi=200)
     plt.close()
@@ -151,6 +244,7 @@ def create_gp_surface_2d_gif(history_surfaces: List[np.ndarray], history_ind_pts
     Animates the optimization of the GP Surface along with inducing points over epochs.
     Requires history_surfaces to contain eval-grid (50x50) mean outputs.
     """
+    print("Creating 2D GP Optimization GIF...")
     if not history_surfaces:
         return
         
@@ -170,7 +264,8 @@ def create_gp_surface_2d_gif(history_surfaces: List[np.ndarray], history_ind_pts
     # Plot true items (static)
     true_locs = [i[0] for i in items]
     true_cols = [i[1] for i in items]
-    ax.scatter(true_locs, true_cols, c='r', marker='*', s=200, label='Items', edgecolors='white', zorder=5)
+    item_rgb = _item_colors_from_wheel([i[1] for i in items])
+    ax.scatter(true_locs, true_cols, c=item_rgb, marker='*', s=200, label='Items', edgecolors='white', zorder=5)
     
     # Inducing points (dynamic)
     scatter_ind = ax.scatter(history_ind_pts[0][:, 0], history_ind_pts[0][:, 1], c='white', marker='.', s=60, alpha=0.8, label='Ind. Pts', zorder=4)
@@ -192,19 +287,20 @@ def create_gp_surface_2d_gif(history_surfaces: List[np.ndarray], history_ind_pts
     anim.save(os.path.join(save_dir, filename), dpi=100, writer='pillow')
     plt.close()
 
-def create_gp_surface_3d_gif(history_surfaces: List[np.ndarray], history_ind_pts: List[np.ndarray], history_ind_vals: List[np.ndarray], items: List[Tuple], save_dir="visualizations", filename="gp_optimization_3d.gif"):
+def create_gp_surface_3d_gif(history_surfaces: List[np.ndarray], history_ind_pts: List[np.ndarray], history_ind_vals: List[np.ndarray], items: List[Tuple], save_dir="visualizations", filename="gp_optimization_3d.gif", rotation_speed: float = 2.0):
     """
     Animates a 3D surface plot of the GP along with floating inducing points over epochs.
     Requires history_surfaces to contain eval-grid (50x50) mean outputs.
     """
+    print("Creating 3D GP Optimization GIF...")
     if not history_surfaces:
         return
         
     fig = plt.figure(figsize=(10, 8))
     ax = fig.add_subplot(111, projection='3d')
     
-    # 50x50 grid that matches the eval grid in simulation.py
-    res = 50
+    # 100x100 grid that matches the eval grid in simulation.py
+    res = 100
     locs = np.linspace(-180.0, 180.0, res)
     colors = np.linspace(-180.0, 180.0, res)
     L, C = np.meshgrid(locs, colors, indexing='ij')
@@ -213,6 +309,11 @@ def create_gp_surface_3d_gif(history_surfaces: List[np.ndarray], history_ind_pts
     z_max = max(1.0, np.max([np.max(s) for s in history_surfaces]))
     z_min = np.min([np.min(s) for s in history_surfaces])
     
+    # Precompute item colours once (static across frames)
+    item_rgb = _item_colors_from_wheel([i[1] for i in items])
+    true_locs = [i[0] for i in items]
+    true_cols = [i[1] for i in items]
+
     def update(frame):
         ax.clear()
         ax.set_title(f"3D GP Optimization - Epoch {frame}")
@@ -222,6 +323,10 @@ def create_gp_surface_3d_gif(history_surfaces: List[np.ndarray], history_ind_pts
         ax.set_xlim([-180.0, 180.0])
         ax.set_ylim([-180.0, 180.0])
         ax.set_zlim([z_min, z_max])
+
+        # Slowly rotate the camera
+        azim = 45 + frame * rotation_speed
+        ax.view_init(elev=25, azim=azim)
         
         # Plot surface
         surf = ax.plot_surface(L, C, history_surfaces[frame], cmap='viridis', edgecolor='none', alpha=0.7)
@@ -231,10 +336,8 @@ def create_gp_surface_3d_gif(history_surfaces: List[np.ndarray], history_ind_pts
         ind_vals = history_ind_vals[frame]
         ax.scatter(ind_pts[:, 0], ind_pts[:, 1], ind_vals, color='red', s=30, label='Ind. Pts', depthshade=False)
         
-        # Plot items at Z=0 for reference
-        true_locs = [i[0] for i in items]
-        true_cols = [i[1] for i in items]
-        ax.scatter(true_locs, true_cols, [z_min]*len(items), c='cyan', marker='*', s=200, label='Items (Ground)', edgecolors='black')
+        # Plot items at the base plane for reference
+        ax.scatter(true_locs, true_cols, [z_min]*len(items), c=item_rgb, marker='*', s=200, label='Items (Ground)', edgecolors='white')
         
         ax.legend(loc='upper right')
         return fig,
@@ -291,7 +394,7 @@ def plot_error_distributions(errors_per_set_size: dict, save_dir="visualizations
     set_sizes = sorted(errors_per_set_size.keys())
     n = len(set_sizes)
 
-    # ── 1. Individual histograms per set size ────────────────────────────────
+    # ── 1. Individual histograms per set size (with KDE density curve) ───────
     for ss in set_sizes:
         errs = np.array(errors_per_set_size[ss])
         sd   = np.std(errs)
@@ -299,6 +402,11 @@ def plot_error_distributions(errors_per_set_size: dict, save_dir="visualizations
         fig, ax = plt.subplots(figsize=(6, 4))
         bins = np.linspace(-180.0, 180.0, 37)          # 10-deg bins
         ax.hist(errs, bins=bins, color='steelblue', edgecolor='black', alpha=0.75, density=True)
+
+        # KDE density curve
+        kde = stats.gaussian_kde(errs)
+        x_kde = np.linspace(-180.0, 180.0, 300)
+        ax.plot(x_kde, kde(x_kde), color='steelblue', linewidth=2.0, label='KDE')
 
         ax.axvline(0,  color='red',   linestyle='--', linewidth=1.8, label='0°')
         ax.axvline( sd, color='gray', linestyle=':',  linewidth=1.4, label=f'+SD ({sd:.1f}°)')
@@ -324,7 +432,36 @@ def plot_error_distributions(errors_per_set_size: dict, save_dir="visualizations
         plt.close()
         print(f"  Saved error distribution for N={ss}  (SD={sd:.2f}°)")
 
-    # ── 2. Combined panel (all set sizes side by side) ───────────────────────
+    # ── 2. Combined overlay: all set sizes in one figure (different colours) ──
+    palette = plt.cm.tab10.colors          # up to 10 distinct colours
+    bins_ov  = np.linspace(-180.0, 180.0, 37)
+    x_kde    = np.linspace(-180.0, 180.0, 300)
+
+    fig_ov, ax_ov = plt.subplots(figsize=(8, 5))
+    for k, ss in enumerate(set_sizes):
+        errs  = np.array(errors_per_set_size[ss])
+        color = palette[k % len(palette)]
+        ax_ov.hist(errs, bins=bins_ov, alpha=0.35, density=True,
+                   color=color, edgecolor='none', label=f'N={ss} hist')
+        kde   = stats.gaussian_kde(errs)
+        ax_ov.plot(x_kde, kde(x_kde), color=color, linewidth=2.2,
+                   label=f'N={ss} KDE')
+
+    ax_ov.axvline(0, color='black', linestyle='--', linewidth=1.5)
+    ax_ov.set_title("Signed Error Distributions — All Set Sizes", fontsize=13)
+    ax_ov.set_xlabel("Signed Error (deg)", fontsize=11)
+    ax_ov.set_ylabel("Density", fontsize=11)
+    ax_ov.set_xlim([-180.0, 180.0])
+    ax_ov.set_xticks([-180, -90, 0, 90, 180])
+    ax_ov.legend(fontsize=9, ncol=2)
+    ax_ov.grid(True, linestyle='--', alpha=0.5)
+    fig_ov.tight_layout()
+    os.makedirs(save_dir, exist_ok=True)
+    plt.savefig(os.path.join(save_dir, "error_distributions_overlay.png"), dpi=150)
+    plt.close()
+    print("  Saved combined overlay error distribution.")
+
+    # ── 3. Combined panel (all set sizes side by side) ───────────────────────
     nrows, ncols = 2, 2
     fig, axes = plt.subplots(nrows, ncols, figsize=(5 * ncols, 4 * nrows), squeeze=False)
 
@@ -408,113 +545,6 @@ def plot_bias_effect(df: pd.DataFrame, save_dir="visualizations"):
     plt.savefig(os.path.join(save_dir, "bias_effect.png"), dpi=150)
     plt.close()
 
-def visualize_training_results(samples, weights, encoding_losses, maintenance_losses, inducing_points_history, inducing_values_history, retrieval_errors):
-    """
-    Visualize the training results, including:
-    1. Training loss curve
-    2. Animation of inducing points and their values during training, with trajectory traces
-    3. Sample data distribution in the background
-    4. Item representation metrics over time
-    """
-    # Create figure with subplots using gridspec for custom widths
-    fig = plt.figure(figsize=(20, 6))
-    gs = fig.add_gridspec(2, 5)
-    
-    # Plot encoding loss
-    ax1 = fig.add_subplot(gs[0, 0])
-    ax1.plot(encoding_losses)
-    ax1.set_title('Encoding Loss')
-    ax1.set_xlabel('Epoch')
-    ax1.set_ylabel('Loss')
-    ax1.set_box_aspect(1)
-    
-    # Plot maintenance loss
-    ax2 = fig.add_subplot(gs[1, 0])
-    ax2.plot(maintenance_losses)
-    ax2.set_title('Maintenance Loss')
-    ax2.set_xlabel('Epoch')
-    ax2.set_ylabel('Loss')
-    ax2.set_box_aspect(1)
-    
-    # Plot decision loss
-    ax3 = fig.add_subplot(gs[0:2, 1:3])
-    for item_idx in range(len(retrieval_errors)):
-        ax3.plot(retrieval_errors[item_idx], 
-                label=f'Item {item_idx}', alpha=0.7)
-    ax3.set_title('Retrieval Error Over Time')
-    ax3.set_xlabel('Epoch')
-    ax3.set_ylabel('Retrieval Error')
-    ax3.legend()
-    ax3.set_box_aspect(1)
-    
-    # Create 3D subplot for inducing points animation
-    ax4 = fig.add_subplot(gs[0:2, 3:5], projection='3d')
-    
-    # Plot sample data in the background using tensor data directly
-    ax4.scatter(samples[:, 0].detach().cpu().numpy(), 
-                samples[:, 1].detach().cpu().numpy(), 
-                samples[:, 2].detach().cpu().numpy(),
-                c=weights.detach().cpu().numpy(), cmap='viridis', alpha=0.1, s=10, label='Samples')
-    
-    # Initialize scatter plot for current points
-    scatter = ax4.scatter([], [], [], c=[], cmap='viridis', alpha=0.8, s=10)
-    
-    # Initialize line collections for trajectories
-    num_points = inducing_points_history[0].shape[0]
-    lines = [ax4.plot([], [], [], alpha=0.3, linewidth=1)[0] for _ in range(num_points)]
-    
-    plt.colorbar(scatter, ax=ax4, label='Function Value')
-    
-    # Set labels and limits
-    ax4.set_xlabel('Location X')
-    ax4.set_ylabel('Location Y')
-    ax4.set_zlabel('Color')
-    ax4.set_xlim(0, 1)
-    ax4.set_ylim(0, 1)
-    ax4.set_zlim(0, 1)
-    ax4.set_title('Inducing Points Evolution')
-    ax4.legend()
-    
-    def update(frame):
-        # Get inducing points and values for current frame
-        points = inducing_points_history[frame]
-        values = inducing_values_history[frame]
-        
-        # Update scatter plot
-        scatter._offsets3d = (points[:, 0].detach().cpu().numpy(), 
-                            points[:, 1].detach().cpu().numpy(), 
-                            points[:, 2].detach().cpu().numpy())
-        scatter.set_array(values.detach().cpu().numpy())
-        
-        # Update trajectory lines
-        for i in range(num_points):
-            # Get trajectory up to current frame
-            trajectory = torch.stack([p[i].detach() for p in inducing_points_history[:frame+1]])
-            trajectory_values = torch.stack([v[i].detach() for v in inducing_values_history[:frame+1]])
-            
-            # Update line data
-            lines[i].set_data(trajectory[:, 0].cpu().numpy(), trajectory[:, 1].cpu().numpy())
-            lines[i].set_3d_properties(trajectory[:, 2].cpu().numpy())
-            
-            # Set line color based on function values
-            lines[i].set_color(plt.cm.viridis(trajectory_values[-1].cpu().numpy()))
-
-        # Update title with epoch number
-        ax4.set_title(f'Inducing Points Evolution (Epoch {frame})')
-        
-        return [scatter] + lines
-    
-    # Create animation
-    anim = FuncAnimation(
-        fig, update, frames=len(inducing_points_history),
-        interval=100, blit=False
-    )
-
-    plt.tight_layout()
-    plt.show()
-
-    return anim
-
 def visualize_continuous_weighting(cued_location, maintenance_samples, proximity_labels):
     """
     Visualize how the continuous weighting works based on distance to cued location
@@ -544,231 +574,7 @@ def visualize_continuous_weighting(cued_location, maintenance_samples, proximity
     plt.tight_layout()
     plt.show()
 
-def create_3d_adaptive_computation():
-    """Create 3D illustration of adaptive computation with location cueing and color retrieval"""
-    fig = plt.figure(figsize=(20, 16))
-    
-    # Create 3D subplot
-    ax = fig.add_subplot(111, projection='3d')
-    
-    # Set up the 3D space
-    ax.set_xlim(0, 1)
-    ax.set_ylim(0, 1)
-    ax.set_zlim(0, 1)
-    
-    # Generate sample items in 3D space (x, y, color)
-    np.random.seed(42)
-    n_items = 8
-    items = np.random.uniform(0.1, 0.9, (n_items, 3))
-    
-    # Cued location (we'll cue the location of item 0)
-    cued_item_idx = 0
-    cued_location = items[cued_item_idx, :2]  # x, y coordinates
-    cued_color = items[cued_item_idx, 2]      # color value
-    
-    # Calculate distances from cued location (only x,y coordinates)
-    distances_2d = np.linalg.norm(items[:, :2] - cued_location, axis=1)
-    
-    # Resource allocation based on 2D distance
-    resource_weights = 0.95 * np.exp(-distances_2d / 0.2) + 0.05
-    resource_weights = resource_weights / np.sum(resource_weights)
-    
-    # Create color map for resource allocation
-    colors_3d = plt.cm.viridis(resource_weights / max(resource_weights))
-    
-    # Plot items in 3D space
-    for i, (item, weight) in enumerate(zip(items, resource_weights)):
-        x, y, color = item
-        
-        # Size based on resource allocation
-        size = 0.02 + 0.08 * weight / max(resource_weights)
-        
-        # Plot item as a sphere
-        u = np.linspace(0, 2 * np.pi, 20)
-        v = np.linspace(0, np.pi, 20)
-        x_sphere = x + size * np.outer(np.cos(u), np.sin(v))
-        y_sphere = y + size * np.outer(np.sin(u), np.sin(v))
-        z_sphere = color + size * np.outer(np.ones_like(u), np.cos(v))
-        
-        ax.plot_surface(x_sphere, y_sphere, z_sphere, 
-                       color=colors_3d[i], alpha=0.7, edgecolor='black', linewidth=0.5)
-        
-        # Add item labels
-        ax.text(x, y, color + size + 0.05, f'Item {i}', 
-                ha='center', va='bottom', fontsize=10, fontweight='bold')
-        
-        # Add resource allocation values
-        ax.text(x, y, color - size - 0.05, f'w={weight:.2f}', 
-                ha='center', va='top', fontsize=8)
-    
-    # Highlight cued item
-    x_cued, y_cued, color_cued = items[cued_item_idx]
-    size_cued = 0.02 + 0.08 * resource_weights[cued_item_idx] / max(resource_weights)
-    
-    # Create larger, highlighted sphere for cued item
-    u = np.linspace(0, 2 * np.pi, 30)
-    v = np.linspace(0, np.pi, 30)
-    x_sphere = x_cued + size_cued * np.outer(np.cos(u), np.sin(v))
-    y_sphere = y_cued + size_cued * np.outer(np.sin(u), np.sin(v))
-    z_sphere = color_cued + size_cued * np.outer(np.ones_like(u), np.cos(v))
-    
-    ax.plot_surface(x_sphere, y_sphere, z_sphere, 
-                   color='red', alpha=0.9, edgecolor='white', linewidth=2)
-    
-    # Add attention spotlight (cylinder around cued location)
-    spotlight_radius = 0.3
-    spotlight_height = 1.0
-    z_spotlight = np.linspace(0, 1, 20)
-    theta = np.linspace(0, 2*np.pi, 20)
-    theta_grid, z_grid = np.meshgrid(theta, z_spotlight)
-    
-    x_spotlight = x_cued + spotlight_radius * np.cos(theta_grid)
-    y_spotlight = y_cued + spotlight_radius * np.sin(theta_grid)
-    
-    ax.plot_surface(x_spotlight, y_spotlight, z_grid, 
-                   color='red', alpha=0.2, edgecolor='red', linewidth=1)
-    
-    # Add cue arrow pointing to cued location
-    cue_start = np.array([0.1, 0.1, 0.9])
-    cue_end = np.array([x_cued, y_cued, color_cued])
-    cue_direction = cue_end - cue_start
-    cue_length = np.linalg.norm(cue_direction)
-    cue_direction = cue_direction / cue_length * 0.8
-    
-    ax.quiver(cue_start[0], cue_start[1], cue_start[2],
-              cue_direction[0], cue_direction[1], cue_direction[2],
-              color='red', arrow_length_ratio=0.2, linewidth=3, alpha=0.8)
-    
-    ax.text(cue_start[0], cue_start[1], cue_start[2] + 0.1, 'Cue\nLocation', 
-            ha='center', va='bottom', fontsize=12, fontweight='bold', color='red')
-    
-    # Add retrieval arrow from cued location to color axis
-    retrieval_start = np.array([x_cued, y_cued, color_cued])
-    retrieval_end = np.array([0.1, 0.1, color_cued])
-    retrieval_direction = retrieval_end - retrieval_start
-    retrieval_length = np.linalg.norm(retrieval_direction)
-    retrieval_direction = retrieval_direction / retrieval_length * 0.6
-    
-    ax.quiver(retrieval_start[0], retrieval_start[1], retrieval_start[2],
-              retrieval_direction[0], retrieval_direction[1], retrieval_direction[2],
-              color='blue', arrow_length_ratio=0.2, linewidth=3, alpha=0.8)
-    
-    ax.text(0.05, 0.05, color_cued, f'Retrieved\nColor: {color_cued:.2f}', 
-            ha='center', va='center', fontsize=12, fontweight='bold', color='blue',
-            bbox=dict(boxstyle="round,pad=0.3", facecolor='lightblue', alpha=0.8))
-    
-    # Add coordinate axes with labels
-    ax.set_xlabel('Location X', fontsize=14, fontweight='bold')
-    ax.set_ylabel('Location Y', fontsize=14, fontweight='bold')
-    ax.set_zlabel('Color', fontsize=14, fontweight='bold')
-    
-    # Add title
-    ax.set_title('3D Adaptive Computation: Location Cueing → Color Retrieval', 
-                 fontsize=16, fontweight='bold', y=0.95)
-    
-    # Add mathematical formulation
-    formula_text = 'L_adapt = 0.95 * L_cued + 0.05 * L_non-cued'
-    ax.text2D(0.5, 0.02, formula_text, ha='center', va='center', fontsize=14, fontweight='bold',
-              transform=ax.transAxes, bbox=dict(boxstyle="round,pad=0.3", facecolor='white', alpha=0.9))
-    
-    # Add legend
-    legend_elements = [
-        mpatches.Patch(color='red', alpha=0.8, label='Cued Item'),
-        mpatches.Patch(color='blue', alpha=0.8, label='Other Items'),
-        mpatches.Patch(color='red', alpha=0.2, label='Attention Spotlight')
-    ]
-    ax.legend(handles=legend_elements, loc='upper right')
-    
-    # Set view angle
-    ax.view_init(elev=20, azim=45)
-    
-    return fig
-
-def create_3d_gp_visualization():
-    """Create 3D visualization of GP function over the input space"""
-    fig = plt.figure(figsize=(20, 16))
-    
-    # Create 3D subplot
-    ax = fig.add_subplot(111, projection='3d')
-    
-    # Set up the 3D space
-    ax.set_xlim(0, 1)
-    ax.set_ylim(0, 1)
-    ax.set_zlim(0, 1)
-    
-    # Create grid for GP surface
-    x_grid = np.linspace(0, 1, 20)
-    y_grid = np.linspace(0, 1, 20)
-    X, Y = np.meshgrid(x_grid, y_grid)
-    
-    # Create a sample GP function (color as function of location)
-    # This represents the learned mapping from location to color
-    Z = 0.5 + 0.3 * np.sin(2 * np.pi * X) * np.cos(2 * np.pi * Y) + 0.2 * np.random.normal(0, 0.1, X.shape)
-    Z = np.clip(Z, 0, 1)  # Clip to valid color range
-    
-    # Plot GP surface
-    surf = ax.plot_surface(X, Y, Z, alpha=0.6, cmap='viridis', linewidth=0)
-    
-    # Add inducing points
-    inducing_points = np.array([
-        [0.2, 0.3, 0.6],
-        [0.5, 0.5, 0.5],
-        [0.8, 0.2, 0.4],
-        [0.3, 0.8, 0.7],
-        [0.7, 0.7, 0.3]
-    ])
-    
-    for i, point in enumerate(inducing_points):
-        x, y, z = point
-        ax.scatter(x, y, z, c='red', s=100, alpha=0.8, edgecolor='black', linewidth=2)
-        ax.text(x, y, z + 0.05, f'IP{i+1}', ha='center', va='bottom', fontsize=10, fontweight='bold')
-    
-    # Add sample items
-    items = np.array([
-        [0.3, 0.4, 0.6],
-        [0.6, 0.3, 0.4],
-        [0.4, 0.7, 0.7],
-        [0.8, 0.6, 0.3]
-    ])
-    
-    for i, item in enumerate(items):
-        x, y, z = item
-        ax.scatter(x, y, z, c='blue', s=80, alpha=0.8, edgecolor='white', linewidth=2)
-        ax.text(x, y, z + 0.05, f'Item{i+1}', ha='center', va='bottom', fontsize=10, fontweight='bold')
-    
-    # Add cued location and retrieval
-    cued_location = np.array([0.5, 0.5])
-    cued_x, cued_y = cued_location
-    
-    # Find color at cued location using GP
-    cued_color = 0.5 + 0.3 * np.sin(2 * np.pi * cued_x) * np.cos(2 * np.pi * cued_y)
-    cued_color = np.clip(cued_color, 0, 1)
-    
-    # Plot cued location
-    ax.scatter(cued_x, cued_y, cued_color, c='red', s=200, alpha=0.9, edgecolor='white', linewidth=3)
-    
-    # Add retrieval arrow to color axis
-    retrieval_start = np.array([cued_x, cued_y, cued_color])
-    retrieval_end = np.array([0.1, 0.1, cued_color])
-    retrieval_direction = retrieval_end - retrieval_start
-    retrieval_length = np.linalg.norm(retrieval_direction)
-    retrieval_direction = retrieval_direction / retrieval_length * 0.6
-    
-    # Add coordinate axes with labels
-    ax.set_xlabel('Location X', fontsize=20, fontweight='bold')
-    ax.set_ylabel('Location Y', fontsize=20, fontweight='bold')
-    ax.set_zlabel('Color', fontsize=20, fontweight='bold')
-    
-    # Add title
-    ax.set_title('3D Gaussian Process: Location → Color Mapping', 
-                 fontsize=20, fontweight='bold', y=0.95)
-    
-    # Add colorbar
-    cbar = plt.colorbar(surf, ax=ax, shrink=0.8)
-    cbar.set_label('Function Value', fontsize=20,rotation=270)
-    
-    # Set view angle
-    ax.view_init(elev=20, azim=45)
-    
-    return fig
+if __name__ == "__main__":
+    fig = create_3d_adaptive_computation()
+    plt.show()
 

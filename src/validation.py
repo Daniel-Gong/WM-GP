@@ -151,9 +151,9 @@ if __name__ == "__main__":
     
     # Needs to import simulation tools correctly
     from simulation import run_simulation_trial
-    model, likelihood, history = run_simulation_trial(demo_items, config, encoding_epochs=100, maintenance_epochs=100, cued_item_idx=0, track_visuals=True)
+    # model, likelihood, history = run_simulation_trial(demo_items, config, encoding_epochs=100, maintenance_epochs=100, cued_item_idx=0, track_visuals=True)
     
     # 2. Run Validation Suite
-    # run_set_size_experiment(config)
+    run_set_size_experiment(config)
     # run_retrocue_experiment(config)
     # run_bias_experiment(config)
