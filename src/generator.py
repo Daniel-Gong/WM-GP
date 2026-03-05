@@ -93,7 +93,7 @@ def sample_training_data(
         loc_weight = np.exp(-0.5 * (loc_dist / loc_std)**2)
         color_weight = np.exp(-0.5 * (color_dist / color_std)**2)
         weights = loc_weight * color_weight
-        weights = weights / (weights.max() + 1e-8) * 5.0  # Scale up: counters KL shrinkage in SVGP
+        weights = weights / (weights.max() + 1e-8) * 1.0  # Scale up: counters KL shrinkage in SVGP
         
         all_samples.append(samples)
         all_weights.append(weights)

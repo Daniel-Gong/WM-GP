@@ -86,6 +86,8 @@ def retrieve_color_probabilistic(
 def run_simulation_trial(
     items: List[Tuple[float, float]],
     config: dict,
+    encoding_epochs: int = None,
+    maintenance_epochs: int = None,
     cued_item_idx: Optional[int] = None,
     track_visuals: bool = False
 ) -> Tuple[WorkingMemoryGP, gpytorch.likelihoods.GaussianLikelihood, Dict]:
@@ -169,8 +171,9 @@ def run_simulation_trial(
     # ==================== ENCODING ====================
     model.train()
     likelihood.train()
-    
-    for epoch in range(config['training']['encoding_epochs']):
+    if encoding_epochs is None:
+        encoding_epochs = config['training']['encoding_epochs']
+    for epoch in range(encoding_epochs):
         optimizer.zero_grad()
         output = model(samples)
         loss = -mll(output, weights)
@@ -181,7 +184,9 @@ def run_simulation_trial(
             log_parameters(loss.item(), is_maint=False)
         
     # ==================== MAINTENANCE (OPTIONAL) ====================
-    if config['training']['maintenance_epochs'] > 0:
+    if maintenance_epochs is None:
+        maintenance_epochs = config['training']['maintenance_epochs']
+    if maintenance_epochs > 0:
         # Switch to maintenance learning rate (typically smaller than encoding lr
         # to avoid disrupting the learned representation during self-rehearsal)
         maint_lr = config['training']['maintenance_lr']
@@ -237,7 +242,9 @@ def run_simulation_trial(
                 log_parameters(loss.item(), is_maint=True)
             
     if track_visuals and config['output']['save_animations']:
-        vis.create_gp_surface_2d_gif(hist_surfaces, hist_ind_pts, items, filename=f"gp_optimization_N{len(items)}.gif")
-        vis.create_gp_surface_3d_gif(hist_surfaces, hist_ind_pts, hist_ind_vals, items, filename=f"gp_optimization_3d_N{len(items)}.gif")
+        vis.create_gp_surface_2d_gif(hist_surfaces, hist_ind_pts, items, filename=f"gp_optimization_N={len(items)}.gif")
+        vis.create_gp_surface_3d_gif(hist_surfaces, hist_ind_pts, hist_ind_vals, items, filename=f"gp_optimization_3d_N={len(items)}.gif")
+        vis.plot_training_trajectories(history, filename=f"training_trajectories_N={len(items)}.png")
+        vis.plot_gp_surface_2d(model, likelihood, items, epoch="Final", prefix="", filename=f"gp_surface_N={len(items)}.png")
         
     return model, likelihood, history

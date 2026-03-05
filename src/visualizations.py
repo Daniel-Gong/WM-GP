@@ -10,7 +10,7 @@ import pandas as pd
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-def plot_gp_surface_2d(model, likelihood, items, epoch, prefix="", save_dir="visualizations"):
+def plot_gp_surface_2d(model, likelihood, items, epoch, prefix="", save_dir="visualizations", filename="gp_surface_final.png"):
     """
     Plots a 2D heatmap of the GP predictive Mean with Inducing Points overlaid.
     X-axis: Location (-pi, pi)
@@ -60,10 +60,10 @@ def plot_gp_surface_2d(model, likelihood, items, epoch, prefix="", save_dir="vis
     ax.legend(loc='upper right')
     
     os.makedirs(save_dir, exist_ok=True)
-    plt.savefig(os.path.join(save_dir, f"{prefix.replace(' ', '_').lower()}_surface_ep{epoch}.png"), dpi=150)
+    plt.savefig(os.path.join(save_dir, filename), dpi=150)
     plt.close()
 
-def plot_training_trajectories(history: Dict, save_dir="visualizations"):
+def plot_training_trajectories(history: Dict, save_dir="visualizations",filename="training_trajectories.png"):
     """
     Plots the trajectories of GP Hyperparameters (Lengthscales, Noise) 
     and ELBO Losses over the training epochs.
@@ -96,7 +96,7 @@ def plot_training_trajectories(history: Dict, save_dir="visualizations"):
 
     plt.tight_layout()
     os.makedirs(save_dir, exist_ok=True)
-    plt.savefig(os.path.join(save_dir, "training_trajectories.png"), dpi=200)
+    plt.savefig(os.path.join(save_dir, filename), dpi=200)
     plt.close()
 
 def plot_signed_error_histogram(signed_errors: List[float], set_size: int, prefix="Neutral", save_dir="visualizations"):

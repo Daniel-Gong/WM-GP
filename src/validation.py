@@ -145,15 +145,13 @@ if __name__ == "__main__":
     
     # 1. Generate core visualizations (GIFs, 2D Plots, Trajectories) on a single high-fidelity run
     print("Generating single-trial visualizations (GP Fits, Trajectories, GIF)...")
-    # np.random.seed(config['experiment']['random_seed'])
-    demo_items = generator.generate_items(3)
+    np.random.seed(config['experiment']['random_seed'])
+    demo_items = generator.generate_items(4)
+    print(demo_items)
     
     # Needs to import simulation tools correctly
     from simulation import run_simulation_trial
-    model, likelihood, history = run_simulation_trial(demo_items, config, track_visuals=True)
-    os.makedirs("visualizations", exist_ok=True)
-    vis.plot_training_trajectories(history, save_dir="visualizations")
-    vis.plot_gp_surface_2d(model, likelihood, demo_items, epoch="Final", prefix="Post-Maint", save_dir="visualizations")
+    model, likelihood, history = run_simulation_trial(demo_items, config, encoding_epochs=100, maintenance_epochs=100, cued_item_idx=0, track_visuals=True)
     
     # 2. Run Validation Suite
     # run_set_size_experiment(config)
