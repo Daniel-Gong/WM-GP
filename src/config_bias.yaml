@@ -7,7 +7,7 @@ data:
   n_samples_per_item: 1000
   loc_std: 20.0
   color_std: 20.0
-  loc_encoding_noise_std: 0.0
+  loc_encoding_noise_std: 20.0
   color_encoding_noise_std: 0.0
 
 model:
@@ -30,7 +30,7 @@ training:
 
 attention:
   spatial_std: 20.0
-  attended_gain: 3.0
+  attended_gain: 2.0
 
 output:
   log_every: 10
