@@ -7,9 +7,11 @@ class WorkingMemoryGP(gpytorch.models.ApproximateGP):
     Input dims: [Location (-180 to 180), Color (-180 to 180)]
     """
     def __init__(self, inducing_grid_size: int = 36, loc_lengthscale: float = 10.0, color_lengthscale: float = 10.0, learn_inducing_locations: bool = True):
-        # Initialize inducing points on a inducing_grid_size x inducing_grid_size regular grid over [-180, 180)
-        # We drop the 180.0 endpoint because it is identical to -180.0 in circular space.
-        grid_1d = torch.linspace(-180.0, 180.0, inducing_grid_size + 1)[:-1]
+        # Initialize inducing points on a inducing_grid_size x inducing_grid_size regular grid over [-180, 180).
+        # Offset by half the bin width (180 / inducing_grid_size) so each point sits at the
+        # centre of its bin and the distance to each edge equals half the inter-point spacing.
+        half_spacing = 180.0 / inducing_grid_size
+        grid_1d = torch.linspace(-180.0 + half_spacing, 180.0 - half_spacing, inducing_grid_size)
         grid_loc, grid_color = torch.meshgrid(grid_1d, grid_1d, indexing='ij')
         inducing_points = torch.stack([grid_loc.reshape(-1), grid_color.reshape(-1)], dim=1)  # (inducing_grid_size^2, 2)
         num_inducing_points = inducing_points.shape[0]  # inducing_grid_size * inducing_grid_size

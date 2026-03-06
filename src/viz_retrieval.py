@@ -27,6 +27,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import gpytorch
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes as _inset_axes
 from typing import List, Tuple, Optional
 
 from generator import generate_items
@@ -42,10 +43,10 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 
-def _load_config(path: Optional[str] = None) -> dict:
+def load_config(path=None,filename="config.yaml"):
     if path is None:
-        path = os.path.join(os.path.dirname(__file__), "config.yaml")
-    with open(path) as f:
+        path = os.path.join(os.path.dirname(__file__), filename)
+    with open(path, 'r') as f:
         return yaml.safe_load(f)
 
 
@@ -226,19 +227,18 @@ def plot_retrieval_mechanism(
     )
     ax2.set_ylabel("GP posterior mean $\\mu$", fontsize=10)
     ax2.set_xlim([-180.0, 180.0])
-    ax2.set_xticks([])          # ticks moved to colorwheel strip below
-    ax2.set_xlabel("")          # label moved to colorwheel strip below
+    ax2.set_xticks([-180, -90, 0, 90, 180])
+    ax2.set_xlabel("Candidate color (°)", fontsize=10)
     ax2.legend(fontsize=8, loc="upper right")
     ax2.grid(True, linestyle="--", alpha=0.4)
 
-    # ── colorwheel strip below ax2 x-axis ────────────────────────────────────
-    #   The strip is an (1 × 360) RGB image spanning [-180, 180].
-    #   We use an inset_axes anchored to ax2 so it stays aligned with the plot.
+    # ── colorwheel strip: bottom edge aligned with y=0 (x-axis) inside ax2 ──
+    #   inset_axes in axes coordinates: bottom=0 puts the strip's lower edge
+    #   exactly on the x-axis line; height=0.05 = 5 % of the axes height.
     cw = _load_colorwheel()                       # (360, 3)
     cw_img = cw[np.newaxis, :, :]                 # (1, 360, 3) for imshow
 
-    divider = make_axes_locatable(ax2)
-    ax_cw = divider.append_axes("bottom", size="8%", pad=0.0)
+    ax_cw = ax2.inset_axes([0, 0, 1, 0.05])       # [left, bottom, width, height] in axes coords
     ax_cw.imshow(
         cw_img,
         aspect="auto",
@@ -246,11 +246,11 @@ def plot_retrieval_mechanism(
         origin="lower",
         interpolation="bilinear",
     )
-    # Mirror the x-ticks of ax2 but hide y-axis
     ax_cw.set_xlim(-180, 180)
-    ax_cw.set_xticks([-180, -90, 0, 90, 180])
+    ax_cw.set_xticks([])
     ax_cw.set_yticks([])
-    ax_cw.set_xlabel("Candidate color (°)", fontsize=10)
+    for spine in ax_cw.spines.values():
+        spine.set_visible(False)
 
     # Vertical markers on the strip matching the main panel lines
     ax_cw.axvline(x=cue_color,  color=_item_colors_from_wheel([cue_color])[0],  linestyle="--", linewidth=2.0)
@@ -260,12 +260,7 @@ def plot_retrieval_mechanism(
     error = best_color - cue_color
     # Wrap to [-180, 180]
     error = (error + 180) % 360 - 180
-    ax2.text(
-        0.02, 0.97,
-        f"Error = {error:+.1f}°",
-        transform=ax2.transAxes, fontsize=9, va="top",
-        bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.85),
-    )
+    print(f"Error = {error:+.1f}°")
 
     fig.tight_layout()
 
@@ -285,18 +280,19 @@ def plot_retrieval_mechanism(
 
 if __name__ == "__main__":
     print("Loading config …")
-    cfg = _load_config()
+    config = load_config(filename="config_retrocue.yaml")
 
-    n_items = 3
+    n_items = 4
+    seed = config["experiment"]["random_seed"]
     print(f"Generating {n_items} items …")
-    items = generate_items(n_items)
+    items = generate_items(n_items,seed=seed)
     print(f"  Items: {items}")
     cue_item_idx = 0
 
     print("Running simulation trial…")
     model, likelihood, history = run_simulation_trial(
         items,
-        config=cfg,
+        config=config,
         cued_item_idx=cue_item_idx,
     )
 

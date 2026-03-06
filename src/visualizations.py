@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import matplotlib.cm as cm
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 import gpytorch
 from typing import Dict, List, Tuple, Optional
 import pandas as pd
@@ -346,6 +347,12 @@ def create_gp_surface_3d_gif(history_surfaces: List[np.ndarray], history_ind_pts
     
     os.makedirs(save_dir, exist_ok=True)
     anim.save(os.path.join(save_dir, filename), dpi=100, writer='pillow')
+
+    # Save the last frame as a standalone PNG
+    update(len(history_surfaces) - 1)
+    last_frame_filename = os.path.splitext(filename)[0] + "_last_frame.png"
+    fig.savefig(os.path.join(save_dir, last_frame_filename), dpi=150, bbox_inches='tight')
+    print(f"  Saved last frame → {os.path.join(save_dir, last_frame_filename)}")
     plt.close()
 
 def plot_set_size_effect(df: pd.DataFrame, save_dir="visualizations"):
@@ -655,7 +662,7 @@ def create_retrocue_allocation_gif(
     item_rgb   = _item_colors_from_wheel([it[1] for it in items])
 
     global_vmax = np.max([np.max(s) for s in history_surfaces])
-    global_vmin = 0.0
+    global_vmin = np.min([np.min(s) for s in history_surfaces])
 
     # --- build 1-D color slice at the cued location row ---
     # surf shape: (res_loc, res_color); axis 0 = location, axis 1 = color
@@ -681,12 +688,12 @@ def create_retrocue_allocation_gif(
     for i, (il, ic) in enumerate(items):
         if i == cued_item_idx:
             ax_map.scatter(il, ic, c=[item_rgb[i]], s=350, marker='*',
-                           edgecolors='black', linewidths=2.0, zorder=6, label='Cued item')
-            ax_map.axvline(il, color='black', linestyle='--', linewidth=1.2, alpha=0.6)
-            ax_map.axhline(ic, color='black', linestyle='--', linewidth=1.2, alpha=0.6)
+                           edgecolors='white', linewidths=2.0, zorder=6, label='Cued item')
+            ax_map.axvline(il, color='white', linestyle='--', linewidth=1.2, alpha=0.6)
+            ax_map.axhline(ic, color='white', linestyle='--', linewidth=1.2, alpha=0.6)
         else:
             ax_map.scatter(il, ic, c=[item_rgb[i]], s=200, marker='*',
-                           edgecolors='black', linewidths=0.8, zorder=6)
+                           edgecolors='white', linewidths=0.8, zorder=6)
 
     # dynamic inducing points
     sc_ind = ax_map.scatter(
@@ -700,19 +707,35 @@ def create_retrocue_allocation_gif(
     title_map = ax_map.set_title('', fontsize=12)
 
     # ── Right panel: color slice at cued location ───────────────────────────
-    line_marg, = ax_marg.plot(colors_np, marginals[0], color='steelblue', linewidth=2.5)
+    line_marg, = ax_marg.plot(colors_np, marginals[0], color='#2196F3', linewidth=2.5)
     ax_marg.set_xlim(-180, 180)
     marg_vmin = min(m.min() for m in marginals)
     marg_vmax = max(m.max() for m in marginals)
     ax_marg.set_ylim(marg_vmin - 0.05*(marg_vmax-marg_vmin),
                      marg_vmax + 0.10*(marg_vmax-marg_vmin))
-    ax_marg.axvline(cued_color, color='black', linestyle='--', linewidth=1.8, alpha=0.9,
+    ax_marg.axvline(cued_color, color=_item_colors_from_wheel([cued_color])[0],
+                    linestyle='--', linewidth=1.8, alpha=0.9,
                     label=f'True color ({cued_color:.0f}°)')
-    ax_marg.set_xlabel('Color (°)', fontsize=11)
+    ax_marg.set_xlabel('')
+    ax_marg.set_xticks([])
     ax_marg.set_ylabel(f'Mean activation\n@ loc={cued_loc:.0f}°', fontsize=11)
     ax_marg.legend(loc='upper right', fontsize=8)
     title_marg = ax_marg.set_title('', fontsize=12)
     ax_marg.grid(True, linestyle='--', alpha=0.4)
+
+    # ── colorwheel strip below ax_marg ───────────────────────────────────────
+    cw = _load_colorwheel()                        # (360, 3)
+    cw_img = cw[np.newaxis, :, :]                  # (1, 360, 3)
+    divider = make_axes_locatable(ax_marg)
+    ax_cw = divider.append_axes('bottom', size='8%', pad=0.0)
+    ax_cw.imshow(cw_img, aspect='auto', extent=[-180, 180, 0, 1],
+                 origin='lower', interpolation='bilinear')
+    ax_cw.set_xlim(-180, 180)
+    ax_cw.set_xticks([-180, -90, 0, 90, 180])
+    ax_cw.set_yticks([])
+    ax_cw.set_xlabel('Color (°)', fontsize=11)
+    ax_cw.axvline(x=cued_color, color=_item_colors_from_wheel([cued_color])[0],
+                  linestyle='--', linewidth=2.0)
 
     fig.tight_layout(pad=2.0)
 
@@ -778,7 +801,7 @@ def plot_retrocue_allocation_comparison(
     item_rgb   = _item_colors_from_wheel([it[1] for it in items])
 
     global_vmax = float(np.max([surface_pre.max(), surface_post.max()]))
-    global_vmin = 0.0
+    global_vmin = float(np.min([surface_pre.min(), surface_post.min()]))
 
     # Color slice at the nearest row to cued_loc
     cued_loc_idx = int(np.argmin(np.abs(locs_np - cued_loc)))
@@ -821,15 +844,15 @@ def plot_retrocue_allocation_comparison(
         for i, (il, ic) in enumerate(items):
             if i == cued_item_idx:
                 ax_heat.scatter(il, ic, c=[item_rgb[i]], s=400, marker='*',
-                                edgecolors='black', linewidths=2.2, zorder=7,
+                                edgecolors='white', linewidths=2.2, zorder=7,
                                 label='Cued item')
-                ax_heat.axvline(il, color='black', linestyle='--',
+                ax_heat.axvline(il, color='white', linestyle='--',
                                 linewidth=1.3, alpha=0.7)
-                ax_heat.axhline(ic, color='black', linestyle='--',
+                ax_heat.axhline(ic, color='white', linestyle='--',
                                 linewidth=1.3, alpha=0.7)
             else:
                 ax_heat.scatter(il, ic, c=[item_rgb[i]], s=220, marker='*',
-                                edgecolors='black', linewidths=0.8, zorder=7)
+                                edgecolors='white', linewidths=0.8, zorder=7)
 
         ax_heat.set_xlim(-180, 180); ax_heat.set_ylim(-180, 180)
         ax_heat.set_title(f'{label}  —  GP Surface', fontsize=12, pad=8)
@@ -838,36 +861,41 @@ def plot_retrocue_allocation_comparison(
         ax_heat.legend(loc='upper right', fontsize=8)
 
         # ── Color slice at cued location ──────────────────────────────────────
-        ax_marg.plot(colors_np, marg, color=line_colors[row_idx], linewidth=2.8)
+        ax_marg.plot(colors_np, marg, color='#2196F3', linewidth=2.8)
 
-        # shade area near true cued color
-        fill_mask = np.abs(colors_np - cued_color) <= 20.0
-        ax_marg.fill_between(colors_np, marg_vmin - marg_pad, marg,
-                             where=fill_mask, color='orange', alpha=0.25,
-                             label=f'True color region (±20°)')
-        ax_marg.axvline(cued_color, color='gray', linestyle='--',
-                        linewidth=1.8, alpha=0.9,
+        ax_marg.axvline(cued_color, color=_item_colors_from_wheel([cued_color])[0],
+                        linestyle='--', linewidth=1.8, alpha=0.9,
                         label=f'True color ({cued_color:.0f}°)')
 
-        # mark peak
-        peak_idx  = np.argmax(marg)
-        peak_col  = colors_np[peak_idx]
-        peak_val  = marg[peak_idx]
-        ax_marg.annotate(
-            f'peak\n{peak_col:.0f}°',
-            xy=(peak_col, peak_val),
-            xytext=(peak_col + 20, peak_val * 0.92),
-            fontsize=8,
-            arrowprops=dict(arrowstyle='->', color='black', lw=1.2),
-        )
+        peak_col = colors_np[np.argmax(marg)]
+        ax_marg.axvline(peak_col, color=_item_colors_from_wheel([peak_col])[0],
+                        linestyle=':', linewidth=1.8, alpha=0.9,
+                        label=f'Peak ({peak_col:.0f}°)')
 
         ax_marg.set_xlim(-180, 180)
         ax_marg.set_ylim(marg_vmin - marg_pad, marg_vmax + 2*marg_pad)
         ax_marg.set_title(f'{label}  —  Color slice @ loc={cued_loc:.0f}°', fontsize=12, pad=8)
-        ax_marg.set_xlabel('Color (°)', fontsize=10)
+        ax_marg.set_xlabel('')
+        ax_marg.set_xticks([])
         ax_marg.set_ylabel(f'Mean activation\n@ loc={cued_loc:.0f}°', fontsize=10)
         ax_marg.legend(loc='upper right', fontsize=8)
         ax_marg.grid(True, linestyle='--', alpha=0.4)
+
+        # ── colorwheel strip below ax_marg ────────────────────────────────────
+        cw = _load_colorwheel()                        # (360, 3)
+        cw_img = cw[np.newaxis, :, :]                  # (1, 360, 3)
+        divider = make_axes_locatable(ax_marg)
+        ax_cw = divider.append_axes('bottom', size='8%', pad=0.0)
+        ax_cw.imshow(cw_img, aspect='auto', extent=[-180, 180, 0, 1],
+                     origin='lower', interpolation='bilinear')
+        ax_cw.set_xlim(-180, 180)
+        ax_cw.set_xticks([-180, -90, 0, 90, 180])
+        ax_cw.set_yticks([])
+        ax_cw.set_xlabel('Color (°)', fontsize=10)
+        ax_cw.axvline(x=cued_color, color=_item_colors_from_wheel([cued_color])[0],
+                      linestyle='--', linewidth=2.0)
+        ax_cw.axvline(x=peak_col,   color=_item_colors_from_wheel([peak_col])[0],
+                      linestyle=':',  linewidth=2.0)
 
     fig.suptitle('Retrocue-Driven Resource Reallocation',
                  fontsize=15, fontweight='bold', y=1.01)

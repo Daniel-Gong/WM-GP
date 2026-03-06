@@ -235,7 +235,7 @@ def run_simulation_trial(
         # beta is the weight for KL divergence
         beta = config['training']['beta']
 
-        for epoch in range(config['training']['maintenance_epochs']):
+        for epoch in range(maintenance_epochs):
             optimizer.zero_grad()
             output = model(maint_grid)
             
@@ -324,10 +324,11 @@ if __name__ == "__main__":
     # 1. Retrocue effect
     config = load_config(filename="config_retrocue.yaml")
     n_items = 4
-    demo_items = generate_items(n_items)
+    seed = config['experiment']['random_seed']
+    demo_items = generate_items(n_items,seed=seed)
     print("Simulating a single trial with N=", n_items)
     print(demo_items)
-    model, likelihood, history = run_simulation_trial(demo_items, config, encoding_epochs=50, cued_item_idx=0, track_visuals=True)
+    model, likelihood, history = run_simulation_trial(demo_items, config, cued_item_idx=0, track_visuals=True)
 
     # 2. Set size effect
     # n_items = 3

@@ -13,7 +13,7 @@ from typing import List, Tuple, Optional
 from generator import generate_items, sample_training_data
 from validation import load_config
 
-_CFG = load_config()["data"]
+_CFG = load_config(filename="config_retrocue.yaml")["data"]
 from visualizations import _item_colors_from_wheel
 
 
@@ -182,5 +182,5 @@ def save_samples_3d_gif(
 
 # ── quick demo ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    for n in [1,2,4,6]:
-        save_samples_3d_gif(n_items=n)
+    for n in [4]:
+        save_samples_3d_gif(n_items=n,seed=42)
