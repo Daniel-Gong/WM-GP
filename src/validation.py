@@ -8,13 +8,13 @@ import generator
 from simulation import run_simulation_trial, retrieve_color
 import visualizations as vis
 
-def load_config(path=None):
+def load_config(path=None, filename="config.yaml"):
     if path is None:
-        path = os.path.join(os.path.dirname(__file__), "config.yaml")
+        path = os.path.join(os.path.dirname(__file__), filename)
     with open(path, 'r') as f:
         return yaml.safe_load(f)
 
-def run_set_size_experiment(config):
+def run_set_size_experiment(config,save_dir="visualizations"):
     """
     Validates signed error distribution vs Set Size.
     Collects signed errors for each set size and plots their distributions.
@@ -42,19 +42,19 @@ def run_set_size_experiment(config):
         errors_per_set_size[n_items] = all_signed
         results.append({'Set Size': n_items, 'Mean Abs Error': mean_abs_err, 'SD Signed Error': sd_signed})
         print(f"Set Size {n_items} | Mean Abs Error: {mean_abs_err:.4f} | SD Signed Error: {sd_signed:.4f}")
-        
-    _vis_dir = os.path.join(os.path.dirname(__file__), "visualizations")
-    os.makedirs(_vis_dir, exist_ok=True)
+
     df = pd.DataFrame(results)
-    df.to_csv(os.path.join(_vis_dir, "set_size_results.csv"), index=False)
-    vis.plot_error_distributions(errors_per_set_size, save_dir=_vis_dir)
-    vis.plot_set_size_effect(df, save_dir=_vis_dir)
+    os.makedirs(save_dir, exist_ok=True)
+    df.to_csv(os.path.join(save_dir, "set_size_results.csv"), index=False)
+    vis.plot_error_distributions(errors_per_set_size, save_dir=save_dir)
+    vis.plot_set_size_effect(df, save_dir=save_dir)
     return df
 
-def run_retrocue_experiment(config, target_set_size=4):
+def run_retrocue_experiment(config, target_set_size=4, save_dir="visualizations"):
     """
     Validates Cued vs Neutral benefits.
     """
+    from scipy import stats
     print(f"\n=== Running Retrocue Experiment (N={target_set_size}) ===")
     
     cued_errors = []
@@ -64,25 +64,35 @@ def run_retrocue_experiment(config, target_set_size=4):
         seed = config['experiment']['random_seed'] + t
         items = generator.generate_items(target_set_size, seed=seed)
         
+        # Determine probed index for this trial
+        probed_idx = np.random.randint(0, target_set_size)
+        
         # Neutral (uncued)
-        _, _, hist_neutral = run_simulation_trial(items, config, cued_item_idx=None)
-        uncued_err = np.mean([hist_neutral['retrieval_errors'][i][-1] for i in range(target_set_size)])
+        model, _, _ = run_simulation_trial(items, config, cued_item_idx=None)
+        uncued_err = abs(retrieve_color(model, items[probed_idx][0], items[probed_idx][1]))
         neutral_errors.append(uncued_err)
+        print(f"Neutral error: {uncued_err:.4f}")
         
         # Cued
-        cued_idx = np.random.randint(0, target_set_size)
-        _, _, hist_cued = run_simulation_trial(items, config, cued_item_idx=cued_idx)
-        cued_err = hist_cued['retrieval_errors'][cued_idx][-1]
+        model, _, _  = run_simulation_trial(items, config, cued_item_idx=probed_idx)
+        cued_err = abs(retrieve_color(model, items[probed_idx][0], items[probed_idx][1]))
         cued_errors.append(cued_err)
+        print(f"Cued error: {cued_err:.4f}")
         
-    print(f"Neutral MAE: {np.mean(neutral_errors):.4f}")
-    print(f"Cued MAE: {np.mean(cued_errors):.4f}")
-    print(f"Retrocue Benefit: {np.mean(neutral_errors) - np.mean(cued_errors):.4f}")
-    _vis_dir = os.path.join(os.path.dirname(__file__), "visualizations")
-    os.makedirs(_vis_dir, exist_ok=True)
-    vis.plot_retrocue_benefit(np.mean(neutral_errors), np.mean(cued_errors), target_set_size, save_dir=_vis_dir)
+    mean_neutral = np.mean(neutral_errors)
+    mean_cued = np.mean(cued_errors)
+    
+    t_stat, p_val = stats.ttest_rel(neutral_errors, cued_errors)
+    
+    print(f"Neutral MAE: {mean_neutral:.4f}")
+    print(f"Cued MAE: {mean_cued:.4f}")
+    print(f"Retrocue Benefit: {mean_neutral - mean_cued:.4f}")
+    print(f"Paired t-test: t = {t_stat:.4f}, p = {p_val:.4e}")
+    
+    os.makedirs(save_dir, exist_ok=True)
+    vis.plot_retrocue_benefit(neutral_errors, cued_errors, target_set_size, save_dir=save_dir, p_val=p_val)
 
-def run_bias_experiment(config):
+def run_bias_experiment(config, save_dir="visualizations"):
     """
     Validates Attraction/Repulsion Bias explicitly near non-targets using relative metric.
     We iterate over a range of color distances to see how bias strength changes.
@@ -94,6 +104,7 @@ def run_bias_experiment(config):
     distances = np.linspace(11.25, 90.0, 6) # From narrow to wide offsets
     
     means = []
+    sems = []
     
     # Keep spatial locations fixed to isolate color-feature interference
     t_loc = 0.0
@@ -107,20 +118,18 @@ def run_bias_experiment(config):
     for dist in tqdm(distances, desc="Distance Sweep"):
         signed_errors = []
         
-        for t in range(config['experiment']['n_trials']):
+        for t in trange(config['experiment']['n_trials']):
             # Target is randomly placed on color wheel
-            t_col = np.random.uniform(-180.0, 180.0)
+            t_col = int(np.random.uniform(-180.0, 180.0))
             
             # Distractor is at specific distance positive from target
             nt_col = (t_col + dist + 180.0) % 360.0 - 180.0
             
             items = [(t_loc, t_col), (nt_loc, nt_col)]
                 
-            model, likelihood, _ = run_simulation_trial(items, config)
+            model, _, _ = run_simulation_trial(items, config)
             
-            # Recompute signed error exactly at target query
-            from simulation import retrieve_color
-            u_err, s_err = retrieve_color(model, likelihood, t_loc, t_col)
+            s_err = retrieve_color(model, t_loc, t_col)
             
             # Note: Distractor was placed in the POSITIVE direction (+dist) relative to Target
             # Therefore, if the predicted color is pulled towards the distractor, 
@@ -130,30 +139,24 @@ def run_bias_experiment(config):
             signed_errors.append(s_err)
             
         mean_bias_deg = np.mean(signed_errors)
+        from scipy import stats as sp_stats
+        sem_bias_deg = sp_stats.sem(signed_errors)
         means.append(mean_bias_deg)
-        print(f"  Dist {dist:.2f} deg -> Mean Bias: {mean_bias_deg:.2f} deg")
+        sems.append(sem_bias_deg)
+        print(f"  Dist {dist:.2f} deg -> Mean Bias: {mean_bias_deg:.2f} deg (SEM: {sem_bias_deg:.2f} deg)")
         
-    df = pd.DataFrame({'Distance_deg': distances, 'Bias_deg': means})
-    _vis_dir = os.path.join(os.path.dirname(__file__), "visualizations")
-    os.makedirs(_vis_dir, exist_ok=True)
-    df.to_csv(os.path.join(_vis_dir, "bias_results.csv"), index=False)
-    vis.plot_bias_effect(df, save_dir=_vis_dir)
+    df = pd.DataFrame({'Distance_deg': distances, 'Bias_deg': means, 'SEM_deg': sems})
+    os.makedirs(save_dir, exist_ok=True)
+    df.to_csv(os.path.join(save_dir, "bias_results.csv"), index=False)
+    vis.plot_bias_effect(df, save_dir=save_dir)
     return df
 
 if __name__ == "__main__":
-    config = load_config()
-    
-    # 1. Generate core visualizations (GIFs, 2D Plots, Trajectories) on a single high-fidelity run
-    print("Generating single-trial visualizations (GP Fits, Trajectories, GIF)...")
-    np.random.seed(config['experiment']['random_seed'])
-    demo_items = generator.generate_items(4)
-    print(demo_items)
-    
-    # Needs to import simulation tools correctly
-    from simulation import run_simulation_trial
-    # model, likelihood, history = run_simulation_trial(demo_items, config, encoding_epochs=100, maintenance_epochs=100, cued_item_idx=0, track_visuals=True)
     
     # 2. Run Validation Suite
-    run_set_size_experiment(config)
-    # run_retrocue_experiment(config)
+    # config = load_config(filename="config_set_size.yaml")
+    # run_set_size_experiment(config)
+    config = load_config(filename="config_retrocue.yaml")
+    run_retrocue_experiment(config)
+    # config = load_config(filename="config_bias.yaml")
     # run_bias_experiment(config)

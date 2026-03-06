@@ -426,9 +426,8 @@ def plot_error_distributions(errors_per_set_size: dict, save_dir="visualizations
 
         ax.grid(True, linestyle='--', alpha=0.5)
         fig.tight_layout()
-        _vis_dir = os.path.join(os.path.dirname(__file__), "visualizations")
-        os.makedirs(_vis_dir, exist_ok=True)
-        plt.savefig(os.path.join(_vis_dir, f"error_dist_N{ss}.png"), dpi=150)
+        os.makedirs(save_dir, exist_ok=True)
+        plt.savefig(os.path.join(save_dir, f"error_dist_N{ss}.png"), dpi=150)
         plt.close()
         print(f"  Saved error distribution for N={ss}  (SD={sd:.2f}°)")
 
@@ -442,7 +441,7 @@ def plot_error_distributions(errors_per_set_size: dict, save_dir="visualizations
         errs  = np.array(errors_per_set_size[ss])
         color = palette[k % len(palette)]
         ax_ov.hist(errs, bins=bins_ov, alpha=0.35, density=True,
-                   color=color, edgecolor='none', label=f'N={ss} hist')
+                   color=color, edgecolor='none')
         kde   = stats.gaussian_kde(errs)
         ax_ov.plot(x_kde, kde(x_kde), color=color, linewidth=2.2,
                    label=f'N={ss} KDE')
@@ -453,7 +452,7 @@ def plot_error_distributions(errors_per_set_size: dict, save_dir="visualizations
     ax_ov.set_ylabel("Density", fontsize=11)
     ax_ov.set_xlim([-180.0, 180.0])
     ax_ov.set_xticks([-180, -90, 0, 90, 180])
-    ax_ov.legend(fontsize=9, ncol=2)
+    ax_ov.legend(fontsize=9, loc='upper right')
     ax_ov.grid(True, linestyle='--', alpha=0.5)
     fig_ov.tight_layout()
     os.makedirs(save_dir, exist_ok=True)
@@ -500,27 +499,47 @@ def plot_error_distributions(errors_per_set_size: dict, save_dir="visualizations
     plt.close()
     print("  Saved combined error distribution panel.")
 
-def plot_retrocue_benefit(neutral_mae: float, cued_mae: float, set_size: int, save_dir="visualizations"):
+def plot_retrocue_benefit(neutral_errors: List[float], cued_errors: List[float], set_size: int, save_dir="visualizations", p_val: Optional[float] = None):
     """
-    Plots a bar chart comparing Neutral vs Cued Mean Absolute Errors.
+    Plots a bar chart comparing Neutral vs Cued Mean Absolute Errors with SEM error bars.
     """
     fig, ax = plt.subplots(figsize=(5, 5))
     
     conditions = ['Neutral', 'Cued']
-    maes = [neutral_mae, cued_mae]
+    maes = [np.mean(neutral_errors), np.mean(cued_errors)]
+    sems = [stats.sem(neutral_errors), stats.sem(cued_errors)]
     colors = ['lightcoral', 'lightgreen']
     
-    ax.bar(conditions, maes, color=colors, edgecolor='black', width=0.5)
+    ax.bar(conditions, maes, yerr=sems, color=colors, edgecolor='black', width=0.5, capsize=5)
     ax.set_title(f"Retrocue Benefit (N={set_size})", fontsize=14)
     ax.set_ylabel("Mean Absolute Error (deg)", fontsize=12)
     
     # Annotate bars
     for i, v in enumerate(maes):
-        ax.text(i, v + 0.02, f"{v:.4f}", ha='center', fontweight='bold')
+        ax.text(i, v + sems[i] + max(0.5, v * 0.05), f"{v:.2f}", ha='center', fontweight='bold')
+        
+    if p_val is not None:
+        if p_val < 0.001:
+            sig = '***'
+        elif p_val < 0.01:
+            sig = '**'
+        elif p_val < 0.05:
+            sig = '*'
+        else:
+            sig = 'ns'
+            
+        y_max = max(maes[0] + sems[0], maes[1] + sems[1])
+        h = max(1.0, 0.05 * y_max)
+        ax.plot([0, 0, 1, 1], [y_max + h, y_max + 2*h, y_max + 2*h, y_max + h], lw=1.5, c='k')
+        ax.text(0.5, y_max + 2.5*h, sig, ha='center', va='bottom', color='k', fontsize=12, fontweight='bold')
+        
+        # Adjust y-limit to fit annotations
+        ax.set_ylim(0, y_max + 5*h)
         
     ax.grid(axis='y', linestyle='--', alpha=0.7)
+    
     os.makedirs(save_dir, exist_ok=True)
-    plt.savefig(os.path.join(save_dir, f"retrocue_benefit_N{set_size}.png"), dpi=150)
+    plt.savefig(os.path.join(save_dir, f"retrocue_benefit_N={set_size}.png"), dpi=150)
     plt.close()
 
 def plot_bias_effect(df: pd.DataFrame, save_dir="visualizations"):
@@ -533,13 +552,27 @@ def plot_bias_effect(df: pd.DataFrame, save_dir="visualizations"):
     dist_deg = df['Distance_deg']
     bias_deg = df['Bias_deg']
     
-    ax.plot(dist_deg, bias_deg, marker='o', linestyle='-', color='purple', markersize=8)
+    yerr = df['SEM_deg'] if 'SEM_deg' in df.columns else None
+
+    if yerr is not None:
+        ax.errorbar(
+            dist_deg, bias_deg, yerr=yerr,
+            marker='o', linestyle='-', color='purple', markersize=8,
+            capsize=5, capthick=1.5, elinewidth=1.5, ecolor='mediumpurple',
+            label='Mean ± 1 SEM'
+        )
+        ax.legend(fontsize=10)
+    else:
+        ax.plot(dist_deg, bias_deg, marker='o', linestyle='-', color='purple', markersize=8)
+
     ax.axhline(0, color='black', linestyle='--', linewidth=1.5)
     
     ax.set_title("Attraction/Repulsion Bias vs Featural Distance", fontsize=14)
     ax.set_xlabel("Target-Distractor Distance (degrees)", fontsize=12)
-    ax.set_ylabel("Bias Magnitude (degrees)\n(+) Attraction, (-) Repulsion", fontsize=12)
-    
+    ax.set_ylabel("Bias Magnitude (degrees)\n(-) Repulsion, (+) Attraction", fontsize=12)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+
     ax.grid(True, linestyle='--', alpha=0.7)
     os.makedirs(save_dir, exist_ok=True)
     plt.savefig(os.path.join(save_dir, "bias_effect.png"), dpi=150)
@@ -574,7 +607,277 @@ def visualize_continuous_weighting(cued_location, maintenance_samples, proximity
     plt.tight_layout()
     plt.show()
 
+def create_retrocue_allocation_gif(
+    history_surfaces: List[np.ndarray],
+    history_ind_pts: List[np.ndarray],
+    items: List[Tuple],
+    cued_item_idx: int,
+    cue_start_epoch: int,
+    save_dir: str = "visualizations",
+    filename: str = "retrocue_allocation.gif",
+) -> None:
+    """
+    Animated GIF showing how computational resources (inducing points + predictive
+    mean) dynamically shift toward the cued item during the maintenance phase.
+
+    Layout — two side-by-side panels per frame:
+      Left:  2D GP surface heatmap with inducing points overlaid.
+             Cued item is highlighted with a coloured star + vertical/horizontal
+             dashed lines so you can track whether the mean peak rises there.
+      Right: 1D marginal — mean activation averaged over all colors at each
+             *location* value. A vertical line marks the cued location so you
+             can see the peak drifting toward it as the cue takes effect.
+
+    Parameters
+    ----------
+    history_surfaces : list of (res, res) np.ndarray
+        Predictive mean surfaces recorded each epoch.
+    history_ind_pts  : list of (M, 2) np.ndarray
+        Inducing point locations recorded each epoch.
+    items            : list of (loc, color) tuples
+        Ground-truth item positions.
+    cued_item_idx    : int
+        Which item is being cued (highlighted in red).
+    cue_start_epoch  : int
+        Epoch at which the retrocue begins — annotated with a marker in the title.
+    save_dir / filename : str
+        Output path.
+    """
+    print("Creating retrocue allocation GIF...")
+    if not history_surfaces:
+        return
+
+    res = history_surfaces[0].shape[0]
+    locs_np = np.linspace(-180.0, 180.0, res)
+
+    cued_loc   = items[cued_item_idx][0]
+    cued_color = items[cued_item_idx][1]
+    item_rgb   = _item_colors_from_wheel([it[1] for it in items])
+
+    global_vmax = np.max([np.max(s) for s in history_surfaces])
+    global_vmin = 0.0
+
+    # --- build 1-D color slice at the cued location row ---
+    # surf shape: (res_loc, res_color); axis 0 = location, axis 1 = color
+    # find the row index closest to cued_loc
+    locs_np   = np.linspace(-180.0, 180.0, res)
+    colors_np = np.linspace(-180.0, 180.0, res)
+    cued_loc_idx = int(np.argmin(np.abs(locs_np - cued_loc)))
+    marginals = [surf[cued_loc_idx, :]  for surf in history_surfaces]  # (res,) each
+
+    fig, (ax_map, ax_marg) = plt.subplots(1, 2, figsize=(14, 6))
+
+    # ── Left panel: 2-D surface ──────────────────────────────────────────────
+    im = ax_map.imshow(
+        history_surfaces[0].T,
+        extent=[-180.0, 180.0, -180.0, 180.0],
+        origin='lower', cmap='viridis', aspect='auto',
+        vmin=global_vmin, vmax=global_vmax,
+    )
+    cbar = fig.colorbar(im, ax=ax_map, fraction=0.046, pad=0.04)
+    cbar.set_label('Predictive Mean', fontsize=10)
+
+    # static items
+    for i, (il, ic) in enumerate(items):
+        if i == cued_item_idx:
+            ax_map.scatter(il, ic, c=[item_rgb[i]], s=350, marker='*',
+                           edgecolors='black', linewidths=2.0, zorder=6, label='Cued item')
+            ax_map.axvline(il, color='black', linestyle='--', linewidth=1.2, alpha=0.6)
+            ax_map.axhline(ic, color='black', linestyle='--', linewidth=1.2, alpha=0.6)
+        else:
+            ax_map.scatter(il, ic, c=[item_rgb[i]], s=200, marker='*',
+                           edgecolors='black', linewidths=0.8, zorder=6)
+
+    # dynamic inducing points
+    sc_ind = ax_map.scatter(
+        history_ind_pts[0][:, 0], history_ind_pts[0][:, 1],
+        c='white', marker='.', s=40, alpha=0.6, zorder=5, label='Inducing pts',
+    )
+    ax_map.set_xlim(-180, 180); ax_map.set_ylim(-180, 180)
+    ax_map.set_xlabel('Location (°)', fontsize=11)
+    ax_map.set_ylabel('Color (°)', fontsize=11)
+    ax_map.legend(loc='upper right', fontsize=8)
+    title_map = ax_map.set_title('', fontsize=12)
+
+    # ── Right panel: color slice at cued location ───────────────────────────
+    line_marg, = ax_marg.plot(colors_np, marginals[0], color='steelblue', linewidth=2.5)
+    ax_marg.set_xlim(-180, 180)
+    marg_vmin = min(m.min() for m in marginals)
+    marg_vmax = max(m.max() for m in marginals)
+    ax_marg.set_ylim(marg_vmin - 0.05*(marg_vmax-marg_vmin),
+                     marg_vmax + 0.10*(marg_vmax-marg_vmin))
+    ax_marg.axvline(cued_color, color='black', linestyle='--', linewidth=1.8, alpha=0.9,
+                    label=f'True color ({cued_color:.0f}°)')
+    ax_marg.set_xlabel('Color (°)', fontsize=11)
+    ax_marg.set_ylabel(f'Mean activation\n@ loc={cued_loc:.0f}°', fontsize=11)
+    ax_marg.legend(loc='upper right', fontsize=8)
+    title_marg = ax_marg.set_title('', fontsize=12)
+    ax_marg.grid(True, linestyle='--', alpha=0.4)
+
+    fig.tight_layout(pad=2.0)
+
+    def update(frame):
+        phase = 'Pre-cue' if frame < cue_start_epoch else '▶ CUE ACTIVE'
+        epoch_label = f'Maint epoch {frame}  |  {phase}'
+
+        # Update surface
+        im.set_array(history_surfaces[frame].T)
+        sc_ind.set_offsets(history_ind_pts[frame])
+        title_map.set_text(f'GP Surface  —  {epoch_label}')
+
+        # Update marginal
+        line_marg.set_ydata(marginals[frame])
+        title_marg.set_text(f'Color slice @ loc={cued_loc:.0f}°  —  {epoch_label}')
+        return im, sc_ind, line_marg
+
+    anim = FuncAnimation(fig, update, frames=len(history_surfaces),
+                         interval=120, blit=False)
+    os.makedirs(save_dir, exist_ok=True)
+    anim.save(os.path.join(save_dir, filename), dpi=100, writer='pillow')
+    plt.close()
+    print(f"  Saved → {os.path.join(save_dir, filename)}")
+
+
+def plot_retrocue_allocation_comparison(
+    surface_pre: np.ndarray,
+    ind_pts_pre: np.ndarray,
+    surface_post: np.ndarray,
+    ind_pts_post: np.ndarray,
+    items: List[Tuple],
+    cued_item_idx: int,
+    save_dir: str = "visualizations",
+    filename: str = "retrocue_allocation_comparison.png",
+) -> None:
+    """
+    Static 2×2 before/after comparison showing retrocue-driven resource reallocation.
+
+    Rows: Before cue onset  |  After cue onset
+    Cols: 2-D GP surface heatmap  |  Location marginal (1-D)
+
+    The cued item is highlighted in red throughout. Inducing points are shown
+    in each heatmap panel so you can directly see whether they have drifted
+    toward the cued location after the cue takes effect.
+
+    Parameters
+    ----------
+    surface_pre / surface_post  : (res, res) np.ndarray
+        Predictive mean surface snapshots *before* and *after* cue onset.
+    ind_pts_pre / ind_pts_post  : (M, 2) np.ndarray
+        Inducing point locations at the two time-points.
+    items              : list of (loc, color) tuples
+    cued_item_idx      : int
+    save_dir / filename : str
+    """
+    print("Plotting retrocue allocation comparison...")
+    res = surface_pre.shape[0]
+    locs_np   = np.linspace(-180.0, 180.0, res)
+    colors_np = np.linspace(-180.0, 180.0, res)
+
+    cued_loc   = items[cued_item_idx][0]
+    cued_color = items[cued_item_idx][1]
+    item_rgb   = _item_colors_from_wheel([it[1] for it in items])
+
+    global_vmax = float(np.max([surface_pre.max(), surface_post.max()]))
+    global_vmin = 0.0
+
+    # Color slice at the nearest row to cued_loc
+    cued_loc_idx = int(np.argmin(np.abs(locs_np - cued_loc)))
+    marg_pre  = surface_pre [cued_loc_idx, :]
+    marg_post = surface_post[cued_loc_idx, :]
+    marg_vmax = max(marg_pre.max(), marg_post.max())
+    marg_vmin = min(marg_pre.min(), marg_post.min())
+    marg_pad  = 0.08 * (marg_vmax - marg_vmin)
+
+    fig, axes = plt.subplots(2, 2, figsize=(14, 11))
+
+    row_labels = ['Before cue onset', 'After cue onset']
+    surfaces   = [surface_pre,  surface_post]
+    ind_pts_list = [ind_pts_pre, ind_pts_post]
+    marginals  = [marg_pre,   marg_post]
+    line_colors = ['steelblue', 'darkorange']
+
+    for row_idx, (label, surf, ind_pts, marg) in enumerate(
+        zip(row_labels, surfaces, ind_pts_list, marginals)
+    ):
+        ax_heat = axes[row_idx][0]
+        ax_marg = axes[row_idx][1]
+
+        # ── Heatmap ──────────────────────────────────────────────────────────
+        im = ax_heat.imshow(
+            surf.T,
+            extent=[-180.0, 180.0, -180.0, 180.0],
+            origin='lower', cmap='viridis', aspect='auto',
+            vmin=global_vmin, vmax=global_vmax,
+        )
+        cbar = fig.colorbar(im, ax=ax_heat, fraction=0.046, pad=0.04)
+        cbar.set_label('Predictive Mean', fontsize=9)
+
+        # Inducing points
+        ax_heat.scatter(ind_pts[:, 0], ind_pts[:, 1],
+                        c='white', marker='.', s=35, alpha=0.55,
+                        zorder=5, label='Inducing pts')
+
+        # Items
+        for i, (il, ic) in enumerate(items):
+            if i == cued_item_idx:
+                ax_heat.scatter(il, ic, c=[item_rgb[i]], s=400, marker='*',
+                                edgecolors='black', linewidths=2.2, zorder=7,
+                                label='Cued item')
+                ax_heat.axvline(il, color='black', linestyle='--',
+                                linewidth=1.3, alpha=0.7)
+                ax_heat.axhline(ic, color='black', linestyle='--',
+                                linewidth=1.3, alpha=0.7)
+            else:
+                ax_heat.scatter(il, ic, c=[item_rgb[i]], s=220, marker='*',
+                                edgecolors='black', linewidths=0.8, zorder=7)
+
+        ax_heat.set_xlim(-180, 180); ax_heat.set_ylim(-180, 180)
+        ax_heat.set_title(f'{label}  —  GP Surface', fontsize=12, pad=8)
+        ax_heat.set_xlabel('Location (°)', fontsize=10)
+        ax_heat.set_ylabel('Color (°)', fontsize=10)
+        ax_heat.legend(loc='upper right', fontsize=8)
+
+        # ── Color slice at cued location ──────────────────────────────────────
+        ax_marg.plot(colors_np, marg, color=line_colors[row_idx], linewidth=2.8)
+
+        # shade area near true cued color
+        fill_mask = np.abs(colors_np - cued_color) <= 20.0
+        ax_marg.fill_between(colors_np, marg_vmin - marg_pad, marg,
+                             where=fill_mask, color='orange', alpha=0.25,
+                             label=f'True color region (±20°)')
+        ax_marg.axvline(cued_color, color='gray', linestyle='--',
+                        linewidth=1.8, alpha=0.9,
+                        label=f'True color ({cued_color:.0f}°)')
+
+        # mark peak
+        peak_idx  = np.argmax(marg)
+        peak_col  = colors_np[peak_idx]
+        peak_val  = marg[peak_idx]
+        ax_marg.annotate(
+            f'peak\n{peak_col:.0f}°',
+            xy=(peak_col, peak_val),
+            xytext=(peak_col + 20, peak_val * 0.92),
+            fontsize=8,
+            arrowprops=dict(arrowstyle='->', color='black', lw=1.2),
+        )
+
+        ax_marg.set_xlim(-180, 180)
+        ax_marg.set_ylim(marg_vmin - marg_pad, marg_vmax + 2*marg_pad)
+        ax_marg.set_title(f'{label}  —  Color slice @ loc={cued_loc:.0f}°', fontsize=12, pad=8)
+        ax_marg.set_xlabel('Color (°)', fontsize=10)
+        ax_marg.set_ylabel(f'Mean activation\n@ loc={cued_loc:.0f}°', fontsize=10)
+        ax_marg.legend(loc='upper right', fontsize=8)
+        ax_marg.grid(True, linestyle='--', alpha=0.4)
+
+    fig.suptitle('Retrocue-Driven Resource Reallocation',
+                 fontsize=15, fontweight='bold', y=1.01)
+    fig.tight_layout(pad=2.5)
+    os.makedirs(save_dir, exist_ok=True)
+    plt.savefig(os.path.join(save_dir, filename), dpi=180, bbox_inches='tight')
+    plt.close()
+    print(f"  Saved → {os.path.join(save_dir, filename)}")
+
+
 if __name__ == "__main__":
     fig = create_3d_adaptive_computation()
     plt.show()
-

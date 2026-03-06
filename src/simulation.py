@@ -3,14 +3,20 @@ import numpy as np
 import gpytorch
 from typing import List, Tuple, Dict, Optional
 import matplotlib.pyplot as plt
-
-from generator import sample_training_data, circular_error
+import yaml
+import os
+from generator import generate_items, sample_training_data, circular_error
 from gp_model import WorkingMemoryGP
 from attention_mechanisms import SpatialProximityAttention
-# Ensure visualizations logic is loaded properly
 import visualizations as vis
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+def load_config(path=None,filename="config.yaml"):
+    if path is None:
+        path = os.path.join(os.path.dirname(__file__), filename)
+    with open(path, 'r') as f:
+        return yaml.safe_load(f)
 
 def retrieve_color(
     model: WorkingMemoryGP,
@@ -89,7 +95,10 @@ def run_simulation_trial(
     encoding_epochs: int = None,
     maintenance_epochs: int = None,
     cued_item_idx: Optional[int] = None,
-    track_visuals: bool = False
+    track_visuals: bool = False,
+    track_retrieval: bool = False,
+    track_lengthscales: bool = False,
+    track_loss: bool = False
 ) -> Tuple[WorkingMemoryGP, gpytorch.likelihoods.GaussianLikelihood, Dict]:
     """
     Runs the Encoding and Maintenance phases for a single trial of N items.
@@ -133,25 +142,32 @@ def run_simulation_trial(
         'signed_errors': {i: [] for i in range(len(items))}
     }
     
-    # Visuals Tracking Collections
+    # Visuals Tracking Collections (encoding + maintenance combined)
     hist_surfaces = []
     hist_ind_pts = []
     hist_ind_vals = []
+    # Maintenance-only tracking for retrocue reallocation visualizations
+    maint_hist_surfaces = []
+    maint_hist_ind_pts  = []
     
     def log_parameters(epoch_loss, is_maint=False):
-        if is_maint:
-            history['maintenance_loss'].append(epoch_loss)
-        else:
-            history['encoding_loss'].append(epoch_loss)
+
+        if track_loss:
+            if is_maint:
+                history['maintenance_loss'].append(epoch_loss)
+            else:
+                history['encoding_loss'].append(epoch_loss)
             
-        history['loc_lengthscale'].append(model.covar_module.base_kernel.kernels[0].lengthscale.item())
-        history['color_lengthscale'].append(model.covar_module.base_kernel.kernels[1].lengthscale.item())
+        if track_lengthscales:
+            history['loc_lengthscale'].append(model.covar_module.base_kernel.kernels[0].lengthscale.item())
+            history['color_lengthscale'].append(model.covar_module.base_kernel.kernels[1].lengthscale.item())
         
-        # Retrieval Tracking
-        for i, (l, c) in enumerate(items):
-            signed_err = retrieve_color(model, l, c)
-            history['unsigned_errors'][i].append(abs(signed_err))
-            history['signed_errors'][i].append(signed_err)
+        if track_retrieval:
+            # Retrieval Tracking
+            for i, (l, c) in enumerate(items):
+                signed_err = retrieve_color(model, l, c)
+                history['unsigned_errors'][i].append(abs(signed_err))
+                history['signed_errors'][i].append(signed_err)
             
         if track_visuals:
             # Reconstruct 2x2 grid fast for tracking
@@ -180,8 +196,7 @@ def run_simulation_trial(
         loss.backward()
         optimizer.step()
         
-        if track_visuals:
-            log_parameters(loss.item(), is_maint=False)
+        log_parameters(loss.item(), is_maint=False)
         
     # ==================== MAINTENANCE (OPTIONAL) ====================
     if maintenance_epochs is None:
@@ -193,8 +208,11 @@ def run_simulation_trial(
         for param_group in optimizer.param_groups:
             param_group['lr'] = maint_lr
 
-        # Use inducing points directly as the maintenance rehearsal set
-        maint_grid = model.variational_strategy.inducing_points.detach()
+        # Use a fixed globally covering uniform grid for maintenance
+        maint_grid_size = config['model'].get('maint_grid_size', 30)
+        grid_1d = torch.linspace(-180.0, 180.0, maint_grid_size + 1, device=device)[:-1]
+        grid_loc, grid_color = torch.meshgrid(grid_1d, grid_1d, indexing='ij')
+        maint_grid = torch.stack([grid_loc.reshape(-1), grid_color.reshape(-1)], dim=1)
         
         with torch.no_grad():
             maint_weights = likelihood(model(maint_grid)).mean.detach()
@@ -208,12 +226,14 @@ def run_simulation_trial(
             ).to(device)
             cued_weights = attn(maint_grid[:, 0], cued_loc)
         else:
-            cued_weights = torch.ones(len(maint_grid), device=device)
+            cued_weights = torch.ones(len(maint_grid), device=device) * 0.5
 
-        neutral_weights = torch.ones(len(maint_grid), device=device)
+        neutral_weights = torch.ones(len(maint_grid), device=device) * 0.5
         
         # Get timing parameters
         cue_start_epoch = config['training']['cue_start_epoch']
+        # beta is the weight for KL divergence
+        beta = config['training']['beta']
 
         for epoch in range(config['training']['maintenance_epochs']):
             optimizer.zero_grad()
@@ -233,19 +253,36 @@ def run_simulation_trial(
                 attn_weights = neutral_weights
 
             weighted_ll = (exp_ll * attn_weights).sum() / len(maint_grid)
-            loss = -weighted_ll + kl_div
+            loss = -weighted_ll + kl_div * beta
             
             loss.backward()
             optimizer.step()
-            
+
+            log_parameters(loss.item(), is_maint=True)
+
+            # Track maintenance snapshots for retrocue allocation vis
             if track_visuals:
-                log_parameters(loss.item(), is_maint=True)
+                with torch.no_grad():
+                    model.eval()
+                    locs_v = torch.linspace(-180.0, 180.0, 100, device=device)
+                    cols_v = torch.linspace(-180.0, 180.0, 100, device=device)
+                    Lv, Cv = torch.meshgrid(locs_v, cols_v, indexing='ij')
+                    grid_v = torch.stack([Lv.flatten(), Cv.flatten()], dim=-1)
+                    surf_v = likelihood(model(grid_v)).mean.view(100, 100).cpu().numpy()
+                    maint_hist_surfaces.append(surf_v)
+                    maint_hist_ind_pts.append(
+                        model.variational_strategy.inducing_points.detach().cpu().numpy()
+                    )
+                model.train()
             
     if track_visuals and config['output']['save_animations']:
         vis.create_gp_surface_2d_gif(hist_surfaces, hist_ind_pts, items, filename=f"gp_optimization_N={len(items)}.gif")
         vis.create_gp_surface_3d_gif(hist_surfaces, hist_ind_pts, hist_ind_vals, items, filename=f"gp_optimization_3d_N={len(items)}.gif")
+    if track_loss and track_lengthscales:
         vis.plot_training_trajectories(history, filename=f"training_trajectories_N={len(items)}.png")
+    if track_visuals:
         vis.plot_gp_surface_2d(model, likelihood, items, epoch="Final", prefix="", filename=f"gp_surface_N={len(items)}.png")
+    if track_retrieval:
         vis.plot_item_retrieval_errors(
             history,
             items,
@@ -253,6 +290,49 @@ def run_simulation_trial(
             cue_start_epoch=config['training'].get('cue_start_epoch') if cued_item_idx is not None else None,
             filename=f"item_losses_N={len(items)}.png",
         )
+
+    # ── Retrocue allocation visualizations ──────────────────────────────────
+    if track_visuals and cued_item_idx is not None and len(maint_hist_surfaces) > 0:
+        cue_start = config['training']['cue_start_epoch']
+        # Animated GIF across all maintenance epochs
+        vis.create_retrocue_allocation_gif(
+            maint_hist_surfaces,
+            maint_hist_ind_pts,
+            items,
+            cued_item_idx=cued_item_idx,
+            cue_start_epoch=cue_start,
+            filename=f"retrocue_allocation_N={len(items)}.gif",
+        )
+        # Static before/after comparison (snapshot at cue onset vs final epoch)
+        pre_idx  = min(cue_start - 1, len(maint_hist_surfaces) - 1)
+        post_idx = len(maint_hist_surfaces) - 1
+        if pre_idx >= 0 and post_idx > pre_idx:
+            vis.plot_retrocue_allocation_comparison(
+                surface_pre  = maint_hist_surfaces[pre_idx],
+                ind_pts_pre  = maint_hist_ind_pts[pre_idx],
+                surface_post = maint_hist_surfaces[post_idx],
+                ind_pts_post = maint_hist_ind_pts[post_idx],
+                items        = items,
+                cued_item_idx= cued_item_idx,
+                filename     = f"retrocue_comparison_N={len(items)}.png",
+            )
         
         
     return model, likelihood, history
+
+if __name__ == "__main__":
+    # 1. Retrocue effect
+    config = load_config(filename="config_retrocue.yaml")
+    n_items = 4
+    demo_items = generate_items(n_items)
+    print("Simulating a single trial with N=", n_items)
+    print(demo_items)
+    model, likelihood, history = run_simulation_trial(demo_items, config, encoding_epochs=50, cued_item_idx=0, track_visuals=True)
+
+    # 2. Set size effect
+    # n_items = 3
+    # config = load_config(filename="config_set_size.yaml")
+    # demo_items = generate_items(n_items)
+    # print("Simulating a single trial with N=", n_items)
+    # print(demo_items)
+    # model, likelihood, history = run_simulation_trial(demo_items, config, maintenance_epochs=0, track_visuals=True, track_loss=True, track_lengthscales=True)
