@@ -6,11 +6,11 @@ from tqdm import tqdm, trange
 
 import generator
 from simulation import run_simulation_trial, retrieve_color
-import visualizations as vis
+import viz.visualizations as vis
 
 def load_config(path=None, filename="config.yaml"):
     if path is None:
-        path = os.path.join(os.path.dirname(__file__), filename)
+        path = os.path.join(os.path.dirname(__file__), "config", filename)
     with open(path, 'r') as f:
         return yaml.safe_load(f)
 

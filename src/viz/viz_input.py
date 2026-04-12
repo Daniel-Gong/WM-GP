@@ -14,7 +14,7 @@ from generator import generate_items, sample_training_data
 from validation import load_config
 
 _CFG = load_config(filename="config_retrocue.yaml")["data"]
-from visualizations import _item_colors_from_wheel
+from viz.visualizations import _item_colors_from_wheel
 
 
 

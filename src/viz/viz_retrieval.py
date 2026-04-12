@@ -19,7 +19,7 @@ Usage
 
 import sys
 import os
-sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import torch
 import numpy as np
@@ -32,7 +32,7 @@ from typing import List, Tuple, Optional
 
 from generator import generate_items
 from simulation import run_simulation_trial
-from visualizations import _load_colorwheel, _item_colors_from_wheel
+from viz.visualizations import _load_colorwheel, _item_colors_from_wheel
 import yaml
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -45,7 +45,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def load_config(path=None,filename="config.yaml"):
     if path is None:
-        path = os.path.join(os.path.dirname(__file__), filename)
+        path = os.path.join(os.path.dirname(__file__), "..", "config", filename)
     with open(path, 'r') as f:
         return yaml.safe_load(f)
 

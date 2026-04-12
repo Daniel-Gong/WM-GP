@@ -13,23 +13,23 @@ over subjects) instead of within-subject SEM/SD.
 
 Usage examples
 --------------
-# Set-size experiment, 10 subjects, 100 trials each
+# Set-size experiment, 10 model runs, 100 trials each
 python validation_subjects.py set_size \
-    --config config_set_size.yaml \
+    --config config/config_set_size.yaml \
     --n_subjects 10 \
     --n_trials 100 \
     --save_dir visualizations/subjects/set_size
 
 # Retrocue experiment
 python validation_subjects.py retrocue \
-    --config config_retrocue.yaml \
+    --config config/config_retrocue.yaml \
     --n_subjects 10 \
     --n_trials 100 \
     --save_dir visualizations/subjects/retrocue
 
 # Bias experiment
 python validation_subjects.py bias \
-    --config config_bias.yaml \
+    --config config/config_bias.yaml \
     --n_subjects 10 \
     --n_trials 100 \
     --save_dir visualizations/subjects/bias
@@ -49,7 +49,23 @@ import matplotlib as mpl
 import yaml
 import generator
 from simulation import run_simulation_trial, retrieve_color
-import visualizations as vis
+import viz.visualizations as vis
+
+# Repo root (parent of `src/`); relative save_dir values are resolved here, not against cwd.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _abs_save_dir(save_dir, *default_segments):
+    """
+    If save_dir is None, use default_segments joined as a path under the repo root.
+    If save_dir is relative, interpret it under the repo root (not cwd).
+    Absolute save_dir values are normalized and left unchanged.
+    """
+    rel = os.path.join(*default_segments) if save_dir is None else save_dir
+    if os.path.isabs(rel):
+        return os.path.normpath(rel)
+    return os.path.normpath(os.path.join(_REPO_ROOT, rel))
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Config helpers
@@ -57,7 +73,7 @@ import visualizations as vis
 
 def load_config(path=None, filename="config.yaml"):
     if path is None:
-        path = os.path.join(os.path.dirname(__file__), filename)
+        path = os.path.join(os.path.dirname(__file__), "config", filename)
     with open(path, "r") as f:
         return yaml.safe_load(f)
 
@@ -172,13 +188,14 @@ def _subject_bias(config: dict):
 # Across-subject aggregation & plotting
 # ──────────────────────────────────────────────────────────────────────────────
 
-def plot_set_size_effect_subjects(subject_records, save_dir="visualizations"):
+def plot_set_size_effect_subjects(subject_records, save_dir=None):
     """
     Parameters
     ----------
     subject_records : list of dicts returned by _subject_set_size()
         Each dict maps set_size -> {'mean_abs_err': float, ...}
     """
+    save_dir = _abs_save_dir(save_dir, "visualizations")
     set_sizes = sorted(subject_records[0].keys())
     n_subj    = len(subject_records)
 
@@ -217,12 +234,13 @@ def plot_set_size_effect_subjects(subject_records, save_dir="visualizations"):
     print(f"  Saved → {out}")
 
 
-def plot_retrocue_benefit_subjects(subject_records, target_set_size=4, save_dir="visualizations"):
+def plot_retrocue_benefit_subjects(subject_records, target_set_size=4, save_dir=None):
     """
     Parameters
     ----------
     subject_records : list of dicts with keys 'mean_neutral', 'mean_cued'
     """
+    save_dir = _abs_save_dir(save_dir, "visualizations")
     neutral_arr = np.array([r["mean_neutral"] for r in subject_records])
     cued_arr    = np.array([r["mean_cued"]    for r in subject_records])
     n_subj      = len(subject_records)
@@ -285,12 +303,13 @@ def plot_retrocue_benefit_subjects(subject_records, target_set_size=4, save_dir=
     print(f"  Saved → {out}")
 
 
-def plot_bias_effect_subjects(subject_records, save_dir="visualizations"):
+def plot_bias_effect_subjects(subject_records, save_dir=None):
     """
     Parameters
     ----------
     subject_records : list of dicts  {distance: mean_bias_deg}
     """
+    save_dir = _abs_save_dir(save_dir, "visualizations")
     distances = sorted(subject_records[0].keys())
     n_subj    = len(subject_records)
 
@@ -342,8 +361,9 @@ def run_set_size_experiment_subjects(
     base_config: dict,
     n_subjects: int = 10,
     n_trials: int = 100,
-    save_dir: str = "visualizations/subjects/set_size",
+    save_dir=None,
 ):
+    save_dir = _abs_save_dir(save_dir, "visualizations", "subjects", "set_size")
     print(f"\n=== Set Size Experiment — {n_subjects} subjects × {n_trials} trials ===")
     subject_records = []
 
@@ -385,8 +405,9 @@ def run_retrocue_experiment_subjects(
     target_set_size: int = 4,
     n_subjects: int = 10,
     n_trials: int = 100,
-    save_dir: str = "visualizations/subjects/retrocue",
+    save_dir=None,
 ):
+    save_dir = _abs_save_dir(save_dir, "visualizations", "subjects", "retrocue")
     print(f"\n=== Retrocue Experiment — {n_subjects} subjects × {n_trials} trials (N={target_set_size}) ===")
     subject_records = []
 
@@ -418,8 +439,9 @@ def run_bias_experiment_subjects(
     base_config: dict,
     n_subjects: int = 10,
     n_trials: int = 100,
-    save_dir: str = "visualizations/subjects/bias",
+    save_dir=None,
 ):
+    save_dir = _abs_save_dir(save_dir, "visualizations", "subjects", "bias")
     print(f"\n=== Bias Experiment — {n_subjects} subjects × {n_trials} trials ===")
     subject_records = []
 
@@ -474,16 +496,16 @@ def main():
         default=None,
         help=(
             "Path to YAML config file. "
-            "Defaults: set_size→config_set_size.yaml, "
-            "retrocue→config_retrocue.yaml, bias→config_bias.yaml"
+            "Defaults: set_size→config/config_set_size.yaml, "
+            "retrocue→config/config_retrocue.yaml, bias→config/config_bias.yaml"
         ),
     )
-    parser.add_argument("--n_subjects", type=int, default=10,
-                        help="Number of simulated subjects (default: 10).")
+    parser.add_argument("--n_subjects", type=int, default=50,
+                        help="Number of simulated subjects (default: 50).")
     parser.add_argument("--n_trials",   type=int, default=100,
                         help="Trials per condition per subject (default: 100).")
-    parser.add_argument("--set_size",   type=int, default=4,
-                        help="Set size for retrocue experiment (default: 4).")
+    parser.add_argument("--set_size",   type=int, default=2,
+                        help="Set size for retrocue experiment (default: 2).")
     parser.add_argument("--save_dir",   default=None,
                         help="Output directory (default: visualizations/subjects/<experiment>).")
     args = parser.parse_args()
@@ -495,12 +517,13 @@ def main():
         "bias":     "config_bias.yaml",
     }
     config_path = args.config or os.path.join(
-        os.path.dirname(__file__), default_configs[args.experiment]
+        os.path.dirname(__file__), "config", default_configs[args.experiment]
     )
     base_config = load_config(path=config_path)
 
-    default_save = os.path.join("visualizations", "subjects", args.experiment)
-    save_dir = args.save_dir or default_save
+    save_dir = _abs_save_dir(
+        args.save_dir, "visualizations", "subjects", args.experiment
+    )
 
     if args.experiment == "set_size":
         run_set_size_experiment_subjects(

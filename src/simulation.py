@@ -8,13 +8,13 @@ import os
 from generator import generate_items, sample_training_data, circular_error
 from gp_model import WorkingMemoryGP
 from attention_mechanisms import SpatialProximityAttention
-import visualizations as vis
+import viz.visualizations as vis
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def load_config(path=None,filename="config.yaml"):
     if path is None:
-        path = os.path.join(os.path.dirname(__file__), filename)
+        path = os.path.join(os.path.dirname(__file__), "config", filename)
     with open(path, 'r') as f:
         return yaml.safe_load(f)
 

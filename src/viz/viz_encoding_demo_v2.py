@@ -15,7 +15,7 @@ Output PDFs are written to  ../visualizations/encoding_demo/
 """
 
 import sys, os
-sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import numpy as np
 import torch
@@ -28,7 +28,7 @@ from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 from generator import generate_items, sample_training_data
 from gp_model import WorkingMemoryGP
 from validation import load_config
-from visualizations import _item_colors_from_wheel
+from viz.visualizations import _item_colors_from_wheel
 
 # ── reproducibility ────────────────────────────────────────────────────────────
 SEED        = 42

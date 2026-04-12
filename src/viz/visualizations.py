@@ -13,6 +13,17 @@ from scipy import stats
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# visualizations.py lives under src/viz/; repo root is two levels up from src/viz.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+def _resolve_save_dir(save_dir: str) -> str:
+    """Relative paths are under the repo root (not cwd). Absolute paths unchanged."""
+    if os.path.isabs(save_dir):
+        return os.path.normpath(save_dir)
+    return os.path.normpath(os.path.join(_REPO_ROOT, save_dir))
+
+
 _COLORWHEEL: Optional[np.ndarray] = None  # cached (360, 3) float32 in [0, 1]
 
 def _load_colorwheel() -> np.ndarray:
@@ -20,7 +31,7 @@ def _load_colorwheel() -> np.ndarray:
     global _COLORWHEEL
     if _COLORWHEEL is not None:
         return _COLORWHEEL
-    csv_path = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', 'colorwheel.csv'))
+    csv_path = os.path.normpath(os.path.join(_REPO_ROOT, "colorwheel.csv"))
     df = pd.read_csv(csv_path, index_col=0)          # columns: R, G, B  (0-255 ints)
     arr = df[['R', 'G', 'B']].values.astype(np.float32) / 255.0  # (360, 3)
     _COLORWHEEL = arr
@@ -40,6 +51,7 @@ def plot_gp_surface_2d(model, likelihood, items, epoch, prefix="", save_dir="vis
     X-axis: Location (-pi, pi)
     Y-axis: Color (-pi, pi)
     """
+    save_dir = _resolve_save_dir(save_dir)
     print("Plotting 2D GP Surface...")
     model.eval()
     likelihood.eval()
@@ -94,6 +106,7 @@ def plot_training_trajectories(history: Dict, save_dir="visualizations",filename
     Plots the trajectories of GP Hyperparameters (Lengthscales, Noise) 
     and ELBO Losses over the training epochs.
     """
+    save_dir = _resolve_save_dir(save_dir)
     print("Plotting Training Trajectories...")
     fig, axs = plt.subplots(1, 3, figsize=(18, 5))
     
@@ -158,6 +171,7 @@ def plot_item_retrieval_errors(
     filename : str
         Output filename.
     """
+    save_dir = _resolve_save_dir(save_dir)
     n_enc  = len(history.get('encoding_loss', []))
     n_maint = len(history.get('maintenance_loss', []))
     n_total = n_enc + n_maint
@@ -220,6 +234,7 @@ def plot_signed_error_histogram(signed_errors: List[float], set_size: int, prefi
     """
     Plots a histogram of the signed retrieval errors spanning [-pi, pi).
     """
+    save_dir = _resolve_save_dir(save_dir)
     fig, ax = plt.subplots(figsize=(6, 4))
     
     # Bins between -180.0 and 180.0
@@ -245,6 +260,7 @@ def create_gp_surface_2d_gif(history_surfaces: List[np.ndarray], history_ind_pts
     Animates the optimization of the GP Surface along with inducing points over epochs.
     Requires history_surfaces to contain eval-grid (50x50) mean outputs.
     """
+    save_dir = _resolve_save_dir(save_dir)
     print("Creating 2D GP Optimization GIF...")
     if not history_surfaces:
         return
@@ -293,6 +309,7 @@ def create_gp_surface_3d_gif(history_surfaces: List[np.ndarray], history_ind_pts
     Animates a 3D surface plot of the GP along with floating inducing points over epochs.
     Requires history_surfaces to contain eval-grid (50x50) mean outputs.
     """
+    save_dir = _resolve_save_dir(save_dir)
     print("Creating 3D GP Optimization GIF...")
     if not history_surfaces:
         return
@@ -360,6 +377,7 @@ def plot_set_size_effect(df: pd.DataFrame, save_dir="visualizations"):
     Plots the mean absolute error vs Set Size with ±1 SD error bars.
     Error bars use the 'SD Signed Error' column when available.
     """
+    save_dir = _resolve_save_dir(save_dir)
     fig, ax = plt.subplots(figsize=(6, 5))
 
     yerr = df['SD Signed Error'] if 'SD Signed Error' in df.columns else None
@@ -397,6 +415,7 @@ def plot_error_distributions(errors_per_set_size: dict, save_dir="visualizations
     save_dir : str
         Directory to save the figures.
     """
+    save_dir = _resolve_save_dir(save_dir)
 
     set_sizes = sorted(errors_per_set_size.keys())
     n = len(set_sizes)
@@ -510,6 +529,7 @@ def plot_retrocue_benefit(neutral_errors: List[float], cued_errors: List[float],
     """
     Plots a bar chart comparing Neutral vs Cued Mean Absolute Errors with SEM error bars.
     """
+    save_dir = _resolve_save_dir(save_dir)
     fig, ax = plt.subplots(figsize=(5, 5))
     
     conditions = ['Neutral', 'Cued']
@@ -554,6 +574,7 @@ def plot_bias_effect(df: pd.DataFrame, save_dir="visualizations"):
     Plots the Bias curve across color feature distances.
     Assumes Bias > 0 is Attraction (pulled towards distractor offset), Bias < 0 is Repulsion.
     """
+    save_dir = _resolve_save_dir(save_dir)
     fig, ax = plt.subplots(figsize=(7, 5))
     
     dist_deg = df['Distance_deg']
@@ -650,6 +671,7 @@ def create_retrocue_allocation_gif(
     save_dir / filename : str
         Output path.
     """
+    save_dir = _resolve_save_dir(save_dir)
     print("Creating retrocue allocation GIF...")
     if not history_surfaces:
         return
@@ -791,6 +813,7 @@ def plot_retrocue_allocation_comparison(
     cued_item_idx      : int
     save_dir / filename : str
     """
+    save_dir = _resolve_save_dir(save_dir)
     print("Plotting retrocue allocation comparison...")
     res = surface_pre.shape[0]
     locs_np   = np.linspace(-180.0, 180.0, res)

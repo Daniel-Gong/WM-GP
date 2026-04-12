@@ -1,12 +1,16 @@
+import os
+import sys
+
+# This file lives under src/viz/; add src/ so generator and attention_mechanisms resolve.
+_SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+if _SRC not in sys.path:
+    sys.path.insert(0, _SRC)
+
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 import torch
-import os
-import sys
 from generator import generate_items
-# Add src to path to import
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from attention_mechanisms import SpatialProximityAttention
 
 def plot_attention_mechanism():
