@@ -33,8 +33,8 @@ _DEFAULT_VIS_DIR = os.path.join(_REPO_ROOT, "visualizations")
 
 def run_3d_bias_experiment(
     config,
-    distances=(22.5, 45, 90, 135, 157.5),
-    encoding_epochs_list=(50, 100, 200),
+    distances=(0, 20, 45, 90, 135),
+    encoding_epochs_list=(25, 50, 75, 100),
     n_trials=None,
     save_dir=None,
 ):
@@ -294,8 +294,8 @@ if __name__ == "__main__":
 
     df = run_3d_bias_experiment(
         config,
-        distances=(22.5, 45, 90, 135, 157.5),
-        encoding_epochs_list=(50, 100, 200),
+        distances=(0, 20, 45, 90, 135),
+        encoding_epochs_list=(25, 50, 75, 100),
     )
 
     plot_3d_bias(df, metric="Bias_pct")
