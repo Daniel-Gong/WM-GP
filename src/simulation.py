@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 import numpy as np
 import gpytorch
 from typing import List, Tuple, Dict, Optional
@@ -18,30 +19,113 @@ def load_config(path=None,filename="config.yaml"):
     with open(path, 'r') as f:
         return yaml.safe_load(f)
 
+def _spatial_divisive_normalize(
+    model: "WorkingMemoryGP",
+    query_loc: float,
+    loc_pool_width_deg: float,
+    color_pool_width_deg: float,
+    baseline_frac: float = 0.1,
+    n_color_samples: int = 360,
+    n_loc_samples: int = 36,
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """
+    Spatial divisive normalization (Carandini & Heeger, 2012).
+
+    For each candidate color *c*, the normalization pool aggregates the GP
+    posterior across nearby *spatial locations* (weighted by a Gaussian
+    centered on ``query_loc``) and nearby *colors* (Gaussian smooth in
+    color space).  This lets the distractor's peak at a different location
+    contribute to the pool, creating surround suppression that shifts the
+    target peak away from the distractor.
+
+    Returns (color_samples, normalized_profile).
+    """
+    model.eval()
+
+    colors = torch.linspace(-180.0, 180.0, n_color_samples, device=device)
+    locs = torch.linspace(-180.0, 180.0, n_loc_samples + 1, device=device)[:-1]
+
+    # --- evaluate the full 2-D surface in one batch ---
+    L, C = torch.meshgrid(locs, colors, indexing="ij")
+    grid = torch.stack([L.reshape(-1), C.reshape(-1)], dim=-1)
+    with torch.no_grad():
+        surface = model(grid).mean.view(n_loc_samples, n_color_samples)
+
+    surface_shifted = surface - surface.min()
+
+    # --- spatial weights (Gaussian centered on query_loc) ---
+    loc_dists = torch.abs(locs - query_loc)
+    loc_dists = torch.min(loc_dists, 360.0 - loc_dists)
+    spatial_w = torch.exp(-0.5 * (loc_dists / loc_pool_width_deg) ** 2)
+    spatial_w = spatial_w / spatial_w.sum()
+
+    # Spatially-weighted pool for each color:  shape (n_color_samples,)
+    spatial_pool = (surface_shifted * spatial_w.unsqueeze(1)).sum(dim=0)
+
+    # --- optional additional Gaussian smooth along the color axis ---
+    color_spacing = 360.0 / n_color_samples
+    half_k = min(int(3.0 * color_pool_width_deg / color_spacing), n_color_samples // 2)
+    kx = torch.arange(-half_k, half_k + 1, device=device).float() * color_spacing
+    kernel = torch.exp(-0.5 * (kx / color_pool_width_deg) ** 2)
+    kernel = kernel / kernel.sum()
+
+    sp = spatial_pool.view(1, 1, -1)
+    sp_padded = F.pad(sp, (half_k, half_k), mode="circular")
+    pool = F.conv1d(sp_padded, kernel.view(1, 1, -1)).squeeze()
+
+    # --- target response at query_loc ---
+    query_idx = torch.argmin(torch.abs(locs - query_loc))
+    target_response = surface_shifted[query_idx]
+
+    sigma = baseline_frac * target_response.max().clamp(min=1e-8)
+    normalized = target_response / (sigma + pool)
+
+    return colors, normalized
+
+
 def retrieve_color(
     model: WorkingMemoryGP,
     query_loc: float,
     true_color: float,
-    n_color_samples: int = 360
-) -> Tuple[float, float]:
+    n_color_samples: int = 360,
+    normalization: Optional[Dict] = None,
+) -> float:
     """
     Retrieve color at a given 1D location by finding the color with maximum GP prediction.
-    Both queries and truths span [-pi, pi)
-    Returns (unsigned_error, signed_error).
+
+    Parameters
+    ----------
+    normalization : dict or None
+        If provided, apply spatial divisive normalization before argmax.
+        Expected keys:
+            loc_pool_width  – spatial pool width (degrees)
+            color_pool_width – color pool width (degrees)
+            baseline_frac   – semi-saturation constant as fraction of peak
     """
     model.eval()
-    
-    color_samples = torch.linspace(-180.0, 180.0, n_color_samples, device=device)
-    query_points = torch.stack([
-        torch.tensor([query_loc, c], device=device) for c in color_samples
-    ])
-    
-    with torch.no_grad():
-        pred = model(query_points)
-        means = pred.mean
-        best_idx = torch.argmax(means)
-        best_color = color_samples[best_idx].item()
-    
+
+    if normalization is not None:
+        colors, profile = _spatial_divisive_normalize(
+            model,
+            query_loc,
+            loc_pool_width_deg=normalization["loc_pool_width"],
+            color_pool_width_deg=normalization["color_pool_width"],
+            baseline_frac=normalization.get("baseline_frac", 0.1),
+            n_color_samples=n_color_samples,
+        )
+        best_idx = torch.argmax(profile)
+        best_color = colors[best_idx].item()
+    else:
+        color_samples = torch.linspace(-180.0, 180.0, n_color_samples, device=device)
+        query_points = torch.stack([
+            torch.tensor([query_loc, c], device=device) for c in color_samples
+        ])
+        with torch.no_grad():
+            pred = model(query_points)
+            means = pred.mean
+            best_idx = torch.argmax(means)
+            best_color = color_samples[best_idx].item()
+
     return circular_error(best_color, true_color)
 
 def retrieve_color_probabilistic(
@@ -252,7 +336,7 @@ def run_simulation_trial(
             else:
                 attn_weights = neutral_weights
 
-            weighted_ll = (exp_ll * attn_weights).sum() / attn_weights.sum()
+            weighted_ll = (exp_ll * attn_weights).sum() / len(maint_grid)
             loss = -weighted_ll + kl_div * beta
             
             loss.backward()

@@ -1,6 +1,6 @@
 experiment:
   set_sizes: [1, 2, 4, 6]
-  n_trials: 100
+  n_trials: 50
   random_seed: 42
   
 data:
@@ -31,6 +31,11 @@ training:
 attention:
   spatial_std: 20.0
   attended_gain: 2.0
+
+normalization:
+  loc_pool_width: 60.0      # spatial pool width (degrees) — must reach the distractor
+  color_pool_width: 5.0     # color-axis smoothing width (degrees) — narrow to preserve asymmetry
+  baseline_frac: 0.5        # semi-saturation constant as fraction of peak response
 
 output:
   log_every: 10

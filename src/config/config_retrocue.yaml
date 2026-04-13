@@ -1,6 +1,6 @@
 experiment:
   set_sizes: [1, 2, 4, 6]
-  n_trials: 100
+  n_trials: 50
   random_seed: 42
   
 data:
@@ -18,19 +18,19 @@ model:
   learn_inducing_locations: true
 
 likelihood:
-  noise_variance: 0.01
+  noise_variance: 0.0001
 
 training:
   encoding_epochs: 100
-  maintenance_epochs: 100
+  maintenance_epochs: 200
   cue_start_epoch: 50              # Start applying cue
   encoding_lr: 0.05
-  maintenance_lr: 0.05
-  beta: 50
+  maintenance_lr: 0.015
+  beta: 5
 
 attention:
   spatial_std: 20.0
-  attended_gain: 10.0
+  attended_gain: 20.0
 
 output:
   log_every: 10

@@ -101,7 +101,7 @@ def run_bias_experiment(config, save_dir="visualizations"):
     
     # 2 Items, varying distance in degrees
     n_items = 2
-    distances = np.linspace(11.25, 90.0, 6) # From narrow to wide offsets
+    distances=(22.5, 45, 90, 135, 157.5)
     
     means = []
     sems = []
@@ -109,6 +109,7 @@ def run_bias_experiment(config, save_dir="visualizations"):
     # Keep spatial locations fixed to isolate color-feature interference
     t_loc = 0.0
     nt_loc = 90.0
+    normalization = config.get('normalization', None)
     
     # Define relative bias function locally
     def calc_bias(errs):
@@ -129,7 +130,8 @@ def run_bias_experiment(config, save_dir="visualizations"):
                 
             model, _, _ = run_simulation_trial(items, config)
             
-            s_err = retrieve_color(model, t_loc, t_col)
+            s_err = retrieve_color(model, t_loc, t_col,
+                                   normalization=normalization)
             
             # Note: Distractor was placed in the POSITIVE direction (+dist) relative to Target
             # Therefore, if the predicted color is pulled towards the distractor, 

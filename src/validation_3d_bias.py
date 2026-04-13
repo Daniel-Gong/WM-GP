@@ -33,7 +33,7 @@ _DEFAULT_VIS_DIR = os.path.join(_REPO_ROOT, "visualizations")
 
 def run_3d_bias_experiment(
     config,
-    distances=np.linspace(11.25, 90.0, 6),
+    distances=(22.5, 45, 90, 135, 157.5),
     encoding_epochs_list=(50, 100, 200),
     n_trials=None,
     save_dir=None,
@@ -53,6 +53,7 @@ def run_3d_bias_experiment(
 
     t_loc = 0.0
     nt_loc = 90.0
+    normalization = config.get("normalization", None)
 
     total = len(distances) * len(encoding_epochs_list)
     print(
@@ -77,7 +78,8 @@ def run_3d_bias_experiment(
                     items, config, encoding_epochs=enc_epochs,
                 )
 
-                s_err = retrieve_color(model, t_loc, t_col)
+                s_err = retrieve_color(model, t_loc, t_col,
+                                       normalization=normalization)
                 signed_errors.append(s_err)
 
             # Distractor is at +dist → repulsion ⇒ error < 0
@@ -292,7 +294,7 @@ if __name__ == "__main__":
 
     df = run_3d_bias_experiment(
         config,
-        distances=np.linspace(11.25, 90.0, 6),
+        distances=(22.5, 45, 90, 135, 157.5),
         encoding_epochs_list=(50, 100, 200),
     )
 
