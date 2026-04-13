@@ -18,15 +18,15 @@ model:
   learn_inducing_locations: true
 
 likelihood:
-  noise_variance: 0.000001
+  noise_variance: 0.01
 
 training:
   encoding_epochs: 100
   maintenance_epochs: 100
   cue_start_epoch: 50              # Start applying cue
   encoding_lr: 0.05
-  maintenance_lr: 0.01
-  beta: 1
+  maintenance_lr: 0.05
+  beta: 50
 
 attention:
   spatial_std: 20.0

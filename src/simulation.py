@@ -226,9 +226,9 @@ def run_simulation_trial(
             ).to(device)
             cued_weights = attn(maint_grid[:, 0], cued_loc)
         else:
-            cued_weights = torch.ones(len(maint_grid), device=device) * 0.5
+            cued_weights = torch.ones(len(maint_grid), device=device) * 1.0
 
-        neutral_weights = torch.ones(len(maint_grid), device=device) * 0.5
+        neutral_weights = torch.ones(len(maint_grid), device=device) * 1.0
         
         # Get timing parameters
         cue_start_epoch = config['training']['cue_start_epoch']
@@ -252,7 +252,7 @@ def run_simulation_trial(
             else:
                 attn_weights = neutral_weights
 
-            weighted_ll = (exp_ll * attn_weights).sum() / len(maint_grid)
+            weighted_ll = (exp_ll * attn_weights).sum() / attn_weights.sum()
             loss = -weighted_ll + kl_div * beta
             
             loss.backward()
@@ -302,6 +302,15 @@ def run_simulation_trial(
             cued_item_idx=cued_item_idx,
             cue_start_epoch=cue_start,
             filename=f"retrocue_allocation_N={len(items)}.gif",
+        )
+        # Delta GIF: each cue-active epoch minus the last pre-cue epoch
+        vis.create_retrocue_delta_gif(
+            maint_hist_surfaces,
+            maint_hist_ind_pts,
+            items,
+            cued_item_idx=cued_item_idx,
+            cue_start_epoch=cue_start,
+            filename=f"retrocue_delta_N={len(items)}.gif",
         )
         # Static before/after comparison (snapshot at cue onset vs final epoch)
         pre_idx  = min(cue_start - 1, len(maint_hist_surfaces) - 1)

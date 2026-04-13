@@ -783,6 +783,151 @@ def create_retrocue_allocation_gif(
     print(f"  Saved → {os.path.join(save_dir, filename)}")
 
 
+def create_retrocue_delta_gif(
+    history_surfaces: List[np.ndarray],
+    history_ind_pts: List[np.ndarray],
+    items: List[Tuple],
+    cued_item_idx: int,
+    cue_start_epoch: int,
+    save_dir: str = "visualizations",
+    filename: str = "retrocue_delta.gif",
+) -> None:
+    """
+    Animated GIF showing the *change* in the GP surface during the cue-active
+    phase relative to the last pre-cue snapshot.
+
+    For each epoch >= cue_start_epoch the displayed surface is:
+        delta = surface[epoch] - surface[cue_start_epoch - 1]
+
+    A diverging colormap (RdBu_r) makes increases (red/warm) and decreases
+    (blue/cool) immediately visible.
+
+    Layout — two side-by-side panels per frame:
+      Left:  2-D delta heatmap with inducing points overlaid.
+      Right: 1-D delta slice at the cued location along the color axis.
+    """
+    save_dir = _resolve_save_dir(save_dir)
+    print("Creating retrocue delta GIF...")
+    if not history_surfaces or cue_start_epoch < 1:
+        return
+
+    baseline_idx = cue_start_epoch - 1
+    if baseline_idx >= len(history_surfaces):
+        return
+    baseline = history_surfaces[baseline_idx]
+
+    cue_epochs = list(range(cue_start_epoch, len(history_surfaces)))
+    if not cue_epochs:
+        return
+
+    deltas = [history_surfaces[e] - baseline for e in cue_epochs]
+    ind_pts_seq = [history_ind_pts[e] for e in cue_epochs]
+    baseline_ind_pts = history_ind_pts[baseline_idx]
+
+    res = baseline.shape[0]
+    colors_np = np.linspace(-180.0, 180.0, res)
+    locs_np = np.linspace(-180.0, 180.0, res)
+
+    cued_loc = items[cued_item_idx][0]
+    cued_color = items[cued_item_idx][1]
+    item_rgb = _item_colors_from_wheel([it[1] for it in items])
+    cued_loc_idx = int(np.argmin(np.abs(locs_np - cued_loc)))
+
+    delta_slices = [d[cued_loc_idx, :] for d in deltas]
+
+    abs_max_2d = max(np.max(np.abs(d)) for d in deltas)
+    if abs_max_2d == 0:
+        abs_max_2d = 1.0
+    abs_max_1d = max(np.max(np.abs(s)) for s in delta_slices)
+    if abs_max_1d == 0:
+        abs_max_1d = 1.0
+
+    fig, (ax_map, ax_slice) = plt.subplots(1, 2, figsize=(14, 6))
+
+    # ── Left panel: 2-D delta heatmap ─────────────────────────────────────────
+    im = ax_map.imshow(
+        deltas[0].T,
+        extent=[-180.0, 180.0, -180.0, 180.0],
+        origin='lower', cmap='RdBu_r', aspect='auto',
+        vmin=-abs_max_2d, vmax=abs_max_2d,
+    )
+    cbar = fig.colorbar(im, ax=ax_map, fraction=0.046, pad=0.04)
+    cbar.set_label('Δ Predictive Mean', fontsize=10)
+
+    for i, (il, ic) in enumerate(items):
+        if i == cued_item_idx:
+            ax_map.scatter(il, ic, c=[item_rgb[i]], s=350, marker='*',
+                           edgecolors='white', linewidths=2.0, zorder=6, label='Cued item')
+            ax_map.axvline(il, color='grey', linestyle='--', linewidth=1.2, alpha=0.6)
+            ax_map.axhline(ic, color='grey', linestyle='--', linewidth=1.2, alpha=0.6)
+        else:
+            ax_map.scatter(il, ic, c=[item_rgb[i]], s=200, marker='*',
+                           edgecolors='white', linewidths=0.8, zorder=6)
+
+    sc_ind = ax_map.scatter(
+        ind_pts_seq[0][:, 0], ind_pts_seq[0][:, 1],
+        c='white', marker='.', s=40, alpha=0.6, zorder=5, label='Inducing pts',
+    )
+    ax_map.set_xlim(-180, 180); ax_map.set_ylim(-180, 180)
+    ax_map.set_xlabel('Location (°)', fontsize=11)
+    ax_map.set_ylabel('Color (°)', fontsize=11)
+    ax_map.legend(loc='upper right', fontsize=8)
+    title_map = ax_map.set_title('', fontsize=12)
+
+    # ── Right panel: 1-D delta slice at cued location ─────────────────────────
+    line_slice, = ax_slice.plot(colors_np, delta_slices[0], color='#E53935', linewidth=2.5)
+    ax_slice.axhline(0, color='black', linestyle='-', linewidth=0.8, alpha=0.5)
+    ax_slice.axvline(cued_color, color=_item_colors_from_wheel([cued_color])[0],
+                     linestyle='--', linewidth=1.8, alpha=0.9,
+                     label=f'Cued color ({cued_color:.0f}°)')
+    for i, (il, ic) in enumerate(items):
+        if i != cued_item_idx:
+            ax_slice.axvline(ic, color=item_rgb[i], linestyle=':', linewidth=1.2, alpha=0.6)
+    ax_slice.set_xlim(-180, 180)
+    ax_slice.set_ylim(-abs_max_1d * 1.15, abs_max_1d * 1.15)
+    ax_slice.set_xlabel('')
+    ax_slice.set_xticks([])
+    ax_slice.set_ylabel(f'Δ activation\n@ loc={cued_loc:.0f}°', fontsize=11)
+    ax_slice.legend(loc='upper right', fontsize=8)
+    title_slice = ax_slice.set_title('', fontsize=12)
+    ax_slice.grid(True, linestyle='--', alpha=0.4)
+
+    # ── colorwheel strip below ax_slice ───────────────────────────────────────
+    cw = _load_colorwheel()
+    cw_img = cw[np.newaxis, :, :]
+    divider = make_axes_locatable(ax_slice)
+    ax_cw = divider.append_axes('bottom', size='8%', pad=0.0)
+    ax_cw.imshow(cw_img, aspect='auto', extent=[-180, 180, 0, 1],
+                 origin='lower', interpolation='bilinear')
+    ax_cw.set_xlim(-180, 180)
+    ax_cw.set_xticks([-180, -90, 0, 90, 180])
+    ax_cw.set_yticks([])
+    ax_cw.set_xlabel('Color (°)', fontsize=11)
+    ax_cw.axvline(x=cued_color, color=_item_colors_from_wheel([cued_color])[0],
+                  linestyle='--', linewidth=2.0)
+
+    fig.tight_layout(pad=2.0)
+
+    def update(frame):
+        real_epoch = cue_epochs[frame]
+        epoch_label = f'Maint epoch {real_epoch}  (Δ vs pre-cue baseline)'
+
+        im.set_array(deltas[frame].T)
+        sc_ind.set_offsets(ind_pts_seq[frame])
+        title_map.set_text(f'Δ GP Surface  —  {epoch_label}')
+
+        line_slice.set_ydata(delta_slices[frame])
+        title_slice.set_text(f'Δ Color slice @ loc={cued_loc:.0f}°  —  {epoch_label}')
+        return im, sc_ind, line_slice
+
+    anim = FuncAnimation(fig, update, frames=len(cue_epochs),
+                         interval=120, blit=False)
+    os.makedirs(save_dir, exist_ok=True)
+    anim.save(os.path.join(save_dir, filename), dpi=100, writer='pillow')
+    plt.close()
+    print(f"  Saved → {os.path.join(save_dir, filename)}")
+
+
 def plot_retrocue_allocation_comparison(
     surface_pre: np.ndarray,
     ind_pts_pre: np.ndarray,

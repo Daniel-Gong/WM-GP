@@ -33,5 +33,5 @@ class SpatialProximityAttention(torch.nn.Module):
         # Gaussian proximity: 1.0 at cued location, 0.0 far away
         gaussian = torch.exp(-0.5 * (dist / self.spatial_std) ** 2)
         # Enhancement gain: cued region > 1.0, uncued region = 1.0
-        weights = 0.5 + (self.attended_gain - 0.5) * gaussian
+        weights = 1.0 + (self.attended_gain - 1.0) * gaussian
         return weights
