@@ -1,5 +1,5 @@
 """
-Figure 1: Conceptual schematic of the WM-GP framework.
+Figure 1: Conceptual schematic of the MemGP framework.
 
 Panel A — Pipeline: Stimulus → Encoding → Maintenance → Retrieval
 Panel B — 2D GP surface example (N=4 items)

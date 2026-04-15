@@ -1,5 +1,5 @@
 """
-Overlay human behavioral data from key cited papers on WM-GP simulation results.
+Overlay human behavioral data from key cited papers on MemGP simulation results.
 
 Digitized data points from:
   - Van den Berg et al. (PNAS, 2012): Set-size effects on mixture statistics (w, CSD)
@@ -76,10 +76,10 @@ VDBERG_CSD_SEM = np.array([0.01, 0.01, 0.02, 0.03, 0.04])
 
 
 def overlay_set_size_mixture():
-    """Overlay Van den Berg data on WM-GP mixture statistics."""
+    """Overlay Van den Berg data on MemGP mixture statistics."""
     mix_path = os.path.join(_VIS_DIR, "mixture_summary_empirical.csv")
     if not os.path.exists(mix_path):
-        print("  No WM-GP mixture data, skipping")
+        print("  No MemGP mixture data, skipping")
         return
 
     df = pd.read_csv(mix_path)
@@ -99,7 +99,7 @@ def overlay_set_size_mixture():
     ax_w.errorbar(sim_n, sim_w, yerr=sim_w_sem,
                   fmt="s-", color=PALETTE["sim_blue"], markersize=5, capsize=3,
                   markerfacecolor=PALETTE["sim_blue"], linewidth=1.8, zorder=4,
-                  label="WM-GP (simulation)")
+                  label="MemGP (simulation)")
     ax_w.set_xlabel("Set size ($N$)")
     ax_w.set_ylabel("Mixture weight ($w$)")
     ax_w.set_ylim(0, 1.1)
@@ -116,7 +116,7 @@ def overlay_set_size_mixture():
     ax_csd.errorbar(sim_n, sim_csd, yerr=sim_csd_sem,
                     fmt="s-", color=PALETTE["sim_orange"], markersize=5, capsize=3,
                     markerfacecolor=PALETTE["sim_orange"], linewidth=1.8, zorder=4,
-                    label="WM-GP")
+                    label="MemGP")
     ax_csd.set_xlabel("Set size ($N$)")
     ax_csd.set_ylabel("Circular SD (rad)")
     ax_csd.set_xticks([1, 2, 4, 6, 8])
@@ -147,7 +147,7 @@ CHUNHARAS_BIAS_LONG_SEM = np.array([0.8, 1.0, 1.5, 1.0])
 
 
 def overlay_bias():
-    """Overlay Chunharas data on WM-GP bias results."""
+    """Overlay Chunharas data on MemGP bias results."""
     bias_3d_path = os.path.join(_VIS_DIR, "bias_3d_results.csv")
     if not os.path.exists(bias_3d_path):
         print("  No 3D bias data, skipping")
@@ -158,7 +158,7 @@ def overlay_bias():
 
     fig, (ax_sim, ax_human) = plt.subplots(1, 2, figsize=(6.5, 3.0))
 
-    # Panel A: WM-GP simulation
+    # Panel A: MemGP simulation
     sim_colors = ["#2171B5", "#E6550D", "#31A354", "#CB181D"]
     markers = ["o", "s", "^", "D"]
     for i, enc in enumerate(enc_epochs):
@@ -174,7 +174,7 @@ def overlay_bias():
     ax_sim.axhline(0, color="black", linestyle="--", linewidth=0.6, alpha=0.5)
     ax_sim.set_xlabel("Color distance (°)")
     ax_sim.set_ylabel("Bias (°)")
-    ax_sim.set_title("WM-GP (simulation)")
+    ax_sim.set_title("MemGP (simulation)")
     ax_sim.legend(frameon=False, fontsize=5.5)
     ax_sim.text(-0.2, 1.08, "A", transform=ax_sim.transAxes, fontsize=12, fontweight="bold")
 

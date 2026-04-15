@@ -1,5 +1,5 @@
 """
-Parameter sensitivity analysis for WM-GP.
+Parameter sensitivity analysis for MemGP.
 
 Systematically varies key parameters (inducing grid size, beta, color lengthscale)
 using a small number of trials per condition to show robustness of qualitative

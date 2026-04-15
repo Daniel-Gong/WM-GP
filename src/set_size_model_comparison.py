@@ -319,7 +319,7 @@ def sample_errors_vp(
     return out
 
 
-# --- Collect WM-GP experiment errors ---
+# --- Collect MemGP experiment errors ---
 
 
 def collect_set_size_errors(config: dict) -> Dict[int, np.ndarray]:
@@ -332,7 +332,7 @@ def collect_set_size_errors(config: dict) -> Dict[int, np.ndarray]:
     errors_per_n: Dict[int, List[float]] = {n: [] for n in set_sizes}
 
     for n_items in set_sizes:
-        for t in trange(n_trials, desc=f"WM-GP trials N={n_items}"):
+        for t in trange(n_trials, desc=f"MemGP trials N={n_items}"):
             seed = base_seed + t * 10007 + n_items
             items = generator.generate_items(n_items, seed=seed)
             model, _, _ = run_simulation_trial(items, config, cued_item_idx=None, track_visuals=False)
@@ -659,7 +659,7 @@ def plot_figure4a_fixed(
             axw.set_ylabel("$w$")
             axc.set_ylabel("CSD (rad)")
         axc.set_xlabel("Set size")
-    fig.suptitle("Uniform–Von Mises mixture vs set size (WM-GP sim) " + title_suffix, fontsize=12)
+    fig.suptitle("Uniform–Von Mises mixture vs set size (MemGP sim) " + title_suffix, fontsize=12)
     plt.tight_layout()
     os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
     plt.savefig(save_path, dpi=150, bbox_inches="tight")
@@ -701,7 +701,7 @@ def main():
         out_dir = os.path.normpath(os.path.join(_SRC, "..", out_dir))
     os.makedirs(out_dir, exist_ok=True)
 
-    print("Collecting errors from WM-GP simulations…")
+    print("Collecting errors from MemGP simulations…")
     errors_by_n = collect_set_size_errors(config)
     np.savez_compressed(
         os.path.join(out_dir, "wm_gp_errors_by_set_size.npz"),

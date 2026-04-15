@@ -1,7 +1,7 @@
 """
 validation_subjects.py
 ======================
-Subject-level validation harness for WM-GP experiments.
+Subject-level validation harness for MemGP experiments.
 
 Runs any of the three experiments – set-size, retrocue, bias – across
 multiple simulated "subjects" (each subject uses a different random seed
@@ -484,7 +484,7 @@ def run_bias_experiment_subjects(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Run WM-GP experiments across multiple simulated subjects."
+        description="Run MemGP experiments across multiple simulated subjects."
     )
     parser.add_argument(
         "experiment",
