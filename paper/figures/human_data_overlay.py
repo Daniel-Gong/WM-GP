@@ -182,11 +182,11 @@ def overlay_bias():
     ax_human.errorbar(CHUNHARAS_DISTANCES, CHUNHARAS_BIAS_SHORT,
                       yerr=CHUNHARAS_BIAS_SHORT_SEM,
                       fmt="o-", color=PALETTE["sim_blue"], markersize=4, capsize=2,
-                      linewidth=1.5, label="Short encoding (100 ms)")
+                      linewidth=1.5, label="Short encoding (50 ms)")
     ax_human.errorbar(CHUNHARAS_DISTANCES, CHUNHARAS_BIAS_LONG,
                       yerr=CHUNHARAS_BIAS_LONG_SEM,
                       fmt="s--", color=PALETTE["sim_orange"], markersize=4, capsize=2,
-                      linewidth=1.5, label="Long encoding (500 ms)")
+                      linewidth=1.5, label="Long encoding (150 ms)")
     ax_human.axhline(0, color="black", linestyle="--", linewidth=0.6, alpha=0.5)
     ax_human.set_xlabel("Color distance (°)")
     ax_human.set_ylabel("Bias (°)")

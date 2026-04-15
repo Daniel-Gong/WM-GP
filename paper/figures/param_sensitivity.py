@@ -36,7 +36,7 @@ rcParams.update({
     "pdf.fonttype": 42,
 })
 
-N_TRIALS = 15
+N_TRIALS = 5
 SET_SIZES = [1, 2, 4, 6]
 BASE_SEED = 42
 
@@ -78,11 +78,12 @@ def param_sensitivity_inducing_grid():
 
 
 def param_sensitivity_beta():
-    """Vary beta (KL weight): 0.1, 1, 5, 10."""
+    """Vary beta (KL weight): 0.1, 1, 5."""
     config_base = load_config(filename="config_set_size.yaml")
     config_base["experiment"]["n_trials"] = N_TRIALS
+    config_base["training"]["maintenance_epochs"] = 50
 
-    betas = [0.1, 1.0, 5.0, 10.0]
+    betas = [0.1, 1.0, 5.0]
     all_results = {}
 
     for beta in betas:
@@ -100,7 +101,7 @@ def param_sensitivity_lengthscale():
     config_base["experiment"]["n_trials"] = N_TRIALS
     config_base["training"]["maintenance_epochs"] = 0
 
-    lengthscales = [5.0, 10.0, 20.0, 40.0]
+    lengthscales = [5.0, 10.0, 20.0]
     all_results = {}
 
     for ls in lengthscales:

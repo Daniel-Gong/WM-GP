@@ -13,28 +13,28 @@ todos:
     status: completed
   - id: param-sensitivity
     content: Run systematic parameter sensitivity analysis (inducing grid size, beta, lengthscale) and create supplementary figures
-    status: in_progress
+    status: completed
   - id: model-selection
     content: Add formal BIC/AIC model comparison to the IL/EP/SA/VP analysis in set_size_model_comparison.py
     status: completed
   - id: write-intro
     content: "Write Introduction section (~800 words): WM debate, process-level gap, WM-GP contribution"
-    status: in_progress
+    status: completed
   - id: write-results
     content: "Write Results section (~2000 words): organized around Figures 2-4 with quantitative claims"
-    status: pending
+    status: completed
   - id: write-discussion
     content: "Write Discussion section (~1200 words): unification argument, neural plausibility, predictions, limitations"
-    status: pending
+    status: completed
   - id: write-methods
     content: "Write Supplementary Methods (~3000 words): full mathematical formalism, parameter tables, statistical details"
-    status: pending
+    status: completed
   - id: write-abstract
     content: Write Abstract (~150 words) and finalize title
-    status: pending
+    status: completed
   - id: bibliography
     content: Audit and complete references.bib -- ensure all cited works are included and properly formatted
-    status: pending
+    status: completed
 isProject: false
 ---
 
