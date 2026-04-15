@@ -22,7 +22,7 @@ likelihood:
 
 training:
   encoding_epochs: 100
-  maintenance_epochs: 200
+  maintenance_epochs: 100
   cue_start_epoch: 50              # Start applying cue
   encoding_lr: 0.05
   maintenance_lr: 0.015

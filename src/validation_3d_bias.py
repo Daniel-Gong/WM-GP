@@ -34,7 +34,7 @@ _DEFAULT_VIS_DIR = os.path.join(_REPO_ROOT, "visualizations")
 def run_3d_bias_experiment(
     config,
     distances=(0, 20, 45, 90, 135),
-    encoding_epochs_list=(25, 50, 75, 100),
+    encoding_epochs_list=(50, 75, 100),
     n_trials=None,
     save_dir=None,
 ):
@@ -238,8 +238,8 @@ def plot_line_bias(df, metric="Bias_deg", save_dir=None):
     distances = sorted(df["Distance_deg"].unique())
     enc_epochs = sorted(df["Encoding_Epochs"].unique())
 
-    colors = ["#4A90D9", "#E8834A", "#4CAF50"]
-    markers = ["o", "s", "^"]
+    colors = ["#4A90D9", "#E8834A", "#4CAF50","#800080"]
+    markers = ["o", "s", "^","D"]
 
     fig, ax = plt.subplots(figsize=(7, 5))
 
@@ -295,7 +295,7 @@ if __name__ == "__main__":
     df = run_3d_bias_experiment(
         config,
         distances=(0, 20, 45, 90, 135),
-        encoding_epochs_list=(25, 50, 75, 100),
+        encoding_epochs_list=(50, 75, 100, 150),
     )
 
     plot_3d_bias(df, metric="Bias_pct")

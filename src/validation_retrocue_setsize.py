@@ -25,7 +25,7 @@ SAVE_DIR = os.path.join(os.path.dirname(__file__), "..", "visualizations")
 os.makedirs(SAVE_DIR, exist_ok=True)
 
 SET_SIZES = [2, 4]
-N_TRIALS = 50
+N_TRIALS = 100
 MAINTENANCE_EPOCHS = 100
 
 

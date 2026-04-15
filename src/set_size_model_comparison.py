@@ -555,6 +555,59 @@ def rmse(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.sqrt(np.mean((a - b) ** 2)))
 
 
+# --- BIC / AIC model comparison ---
+
+_MODEL_N_PARAMS = {"IL": 3, "SA": 3, "EP": 3, "VP": 4}
+
+
+def compute_information_criteria(
+    fits: Dict[str, FitResult],
+    errors_by_n: Dict[int, np.ndarray],
+) -> Dict[str, Dict[str, float]]:
+    """
+    Compute AIC, BIC, and AICc for each fitted model.
+
+    Parameters
+    ----------
+    fits : dict of FitResult
+    errors_by_n : dict mapping set size -> array of errors (radians)
+
+    Returns
+    -------
+    dict : model_name -> {"neg_ll", "k", "n", "AIC", "BIC", "AICc", "delta_AIC", "delta_BIC"}
+    """
+    n_total = sum(len(v) for v in errors_by_n.values())
+    results = {}
+    for name, fr in fits.items():
+        k = _MODEL_N_PARAMS[name]
+        nll = fr.neg_ll
+        ll = -nll
+
+        aic = 2 * k - 2 * ll
+        bic = k * np.log(n_total) - 2 * ll
+        if n_total - k - 1 > 0:
+            aicc = aic + (2 * k * (k + 1)) / (n_total - k - 1)
+        else:
+            aicc = aic
+
+        results[name] = {
+            "neg_ll": nll,
+            "k": k,
+            "n": n_total,
+            "AIC": aic,
+            "BIC": bic,
+            "AICc": aicc,
+        }
+
+    min_aic = min(r["AIC"] for r in results.values())
+    min_bic = min(r["BIC"] for r in results.values())
+    for name in results:
+        results[name]["delta_AIC"] = results[name]["AIC"] - min_aic
+        results[name]["delta_BIC"] = results[name]["BIC"] - min_bic
+
+    return results
+
+
 def plot_figure4a_fixed(
     set_sizes: List[int],
     empirical: Dict[int, Tuple[float, float, float, float]],
@@ -671,6 +724,22 @@ def main():
     pd.DataFrame(rows).to_csv(os.path.join(out_dir, "mixture_summary_empirical.csv"), index=False)
     for name, fr in fits.items():
         print(f"  {name}: neg_loglik≈{fr.neg_ll:.1f}, params={np.round(fr.params, 4)}")
+
+    ic = compute_information_criteria(fits, errors_by_n)
+    ic_rows = []
+    for name in ["IL", "SA", "EP", "VP"]:
+        r = ic[name]
+        ic_rows.append({
+            "Model": name, "k": r["k"], "n": r["n"],
+            "neg_loglik": r["neg_ll"],
+            "AIC": r["AIC"], "BIC": r["BIC"], "AICc": r["AICc"],
+            "delta_AIC": r["delta_AIC"], "delta_BIC": r["delta_BIC"],
+        })
+        print(f"  {name}: AIC={r['AIC']:.1f}, BIC={r['BIC']:.1f}, "
+              f"ΔAIC={r['delta_AIC']:.1f}, ΔBIC={r['delta_BIC']:.1f}")
+    pd.DataFrame(ic_rows).to_csv(
+        os.path.join(out_dir, "model_comparison_information_criteria.csv"), index=False
+    )
 
     plot_figure4a_fixed(
         set_sizes,
