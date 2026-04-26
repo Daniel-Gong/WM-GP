@@ -108,8 +108,7 @@ def run_bias_experiment(config, save_dir="visualizations"):
     
     # Keep spatial locations fixed to isolate color-feature interference
     t_loc = 0.0
-    nt_loc = 90.0
-    normalization = config.get('normalization', None)
+    nt_loc = 30.0
     
     # Define relative bias function locally
     def calc_bias(errs):
@@ -130,8 +129,7 @@ def run_bias_experiment(config, save_dir="visualizations"):
                 
             model, _, _ = run_simulation_trial(items, config)
             
-            s_err = retrieve_color(model, t_loc, t_col,
-                                   normalization=normalization)
+            s_err = retrieve_color(model, t_loc, t_col)
             
             # Note: Distractor was placed in the POSITIVE direction (+dist) relative to Target
             # Therefore, if the predicted color is pulled towards the distractor, 

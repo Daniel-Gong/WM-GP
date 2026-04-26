@@ -12,44 +12,57 @@ Steven~J. Luck and Edward~K. Vogel.
 \newblock ISSN 1476-4687.
 \newblock \doi{10.1038/36846}.
 
-\bibitem[Zhang and Luck(2008)]{zhangDiscreteFixedresolutionRepresentations2008b}
+\bibitem[Zhang and
+  Luck(2008)]{zhangDiscreteFixedresolutionRepresentations2008b}
 Weiwei Zhang and Steven~J. Luck.
 \newblock Discrete fixed-resolution representations in visual working memory.
 \newblock \emph{Nature}, 453\penalty0 (7192):\penalty0 233--235, May 2008.
 \newblock ISSN 1476-4687.
 \newblock \doi{10.1038/nature06860}.
 
-\bibitem[Bays et~al.(2009)Bays, Catalao, and Husain]{baysPrecisionVisualWorking2009b}
+\bibitem[Bays et~al.(2009)Bays, Catalao, and
+  Husain]{baysPrecisionVisualWorking2009b}
 Paul~M. Bays, Raquel F.~G. Catalao, and Masud Husain.
-\newblock The precision of visual working memory is set by allocation of a shared resource.
-\newblock \emph{Journal of Vision}, 9\penalty0 (10):\penalty0 7, September 2009.
+\newblock The precision of visual working memory is set by allocation of a
+  shared resource.
+\newblock \emph{Journal of Vision}, 9\penalty0 (10):\penalty0 7, September
+  2009.
 \newblock ISSN 1534-7362.
 \newblock \doi{10.1167/9.10.7}.
 
 \bibitem[Ma et~al.(2014)Ma, Husain, and Bays]{maChangingConceptsWorking2014a}
 Wei~Ji Ma, Masud Husain, and Paul~M. Bays.
 \newblock Changing concepts of working memory.
-\newblock \emph{Nature Neuroscience}, 17\penalty0 (3):\penalty0 347--356, March 2014.
+\newblock \emph{Nature Neuroscience}, 17\penalty0 (3):\penalty0 347--356, March
+  2014.
 \newblock ISSN 1546-1726.
 \newblock \doi{10.1038/nn.3655}.
 
-\bibitem[{van den Berg} et~al.(2012){van den Berg}, Shin, Chou, George, and Ma]{vandenbergVariabilityEncodingPrecision2012}
-Ronald {van den Berg}, Hongsup Shin, Wen-Chuang Chou, Ryan George, and Wei~Ji Ma.
-\newblock Variability in encoding precision accounts for visual short-term memory limitations.
-\newblock \emph{Proceedings of the National Academy of Sciences}, 109\penalty0 (22):\penalty0 8780--8785, May 2012.
+\bibitem[{van den Berg} et~al.(2012){van den Berg}, Shin, Chou, George, and
+  Ma]{vandenbergVariabilityEncodingPrecision2012}
+Ronald {van den Berg}, Hongsup Shin, Wen-Chuang Chou, Ryan George, and Wei~Ji
+  Ma.
+\newblock Variability in encoding precision accounts for visual short-term
+  memory limitations.
+\newblock \emph{Proceedings of the National Academy of Sciences}, 109\penalty0
+  (22):\penalty0 8780--8785, May 2012.
 \newblock \doi{10.1073/pnas.1117465109}.
 
 \bibitem[Bays(2014)]{baysNoiseNeuralPopulations2014a}
 Paul~M. Bays.
-\newblock Noise in {{Neural Populations Accounts}} for {{Errors}} in {{Working Memory}}.
-\newblock \emph{Journal of Neuroscience}, 34\penalty0 (10):\penalty0 3632--3645, March 2014.
+\newblock Noise in {{Neural Populations Accounts}} for {{Errors}} in {{Working
+  Memory}}.
+\newblock \emph{Journal of Neuroscience}, 34\penalty0 (10):\penalty0
+  3632--3645, March 2014.
 \newblock ISSN 0270-6474, 1529-2401.
 \newblock \doi{10.1523/JNEUROSCI.3204-13.2014}.
 
 \bibitem[Schneegans and Bays(2017)]{schneegansNeuralArchitectureFeature2017c}
 Sebastian Schneegans and Paul~M. Bays.
-\newblock Neural {{Architecture}} for {{Feature Binding}} in {{Visual Working Memory}}.
-\newblock \emph{The Journal of Neuroscience}, 37\penalty0 (14):\penalty0 3913--3925, April 2017.
+\newblock Neural {{Architecture}} for {{Feature Binding}} in {{Visual Working
+  Memory}}.
+\newblock \emph{The Journal of Neuroscience}, 37\penalty0 (14):\penalty0
+  3913--3925, April 2017.
 \newblock ISSN 0270-6474, 1529-2401.
 \newblock \doi{10.1523/JNEUROSCI.3493-16.2017}.
 
@@ -62,109 +75,148 @@ Paul~M. Bays and Robert Taylor.
 
 \bibitem[Taylor and Bays(2018)]{taylorEfficientCodingVisual2018}
 Robert Taylor and Paul~M. Bays.
-\newblock Efficient {{Coding}} in {{Visual Working Memory Accounts}} for {{Stimulus-Specific Variations}} in {{Recall}}.
-\newblock \emph{Journal of Neuroscience}, 38\penalty0 (32):\penalty0 7132--7142, August 2018.
+\newblock Efficient {{Coding}} in {{Visual Working Memory Accounts}} for
+  {{Stimulus-Specific Variations}} in {{Recall}}.
+\newblock \emph{Journal of Neuroscience}, 38\penalty0 (32):\penalty0
+  7132--7142, August 2018.
 \newblock ISSN 0270-6474, 1529-2401.
 \newblock \doi{10.1523/JNEUROSCI.1018-18.2018}.
 
-\bibitem[Schneegans et~al.(2020)Schneegans, Taylor, and Bays]{schneegansStochasticSamplingProvides2020}
+\bibitem[Schneegans et~al.(2020)Schneegans, Taylor, and
+  Bays]{schneegansStochasticSamplingProvides2020}
 Sebastian Schneegans, Robert Taylor, and Paul~M. Bays.
-\newblock Stochastic sampling provides a unifying account of visual working memory limits.
-\newblock \emph{Proceedings of the National Academy of Sciences}, 117\penalty0 (34):\penalty0 20959--20968, August 2020.
+\newblock Stochastic sampling provides a unifying account of visual working
+  memory limits.
+\newblock \emph{Proceedings of the National Academy of Sciences}, 117\penalty0
+  (34):\penalty0 20959--20968, August 2020.
 \newblock ISSN 0027-8424, 1091-6490.
 \newblock \doi{10.1073/pnas.2004306117}.
 
-\bibitem[Chunharas et~al.(2022)Chunharas, Rademaker, Brady, and Serences]{chunharasAdaptivePerspectiveVisual2022a}
-Chaipat Chunharas, Rosanne~L. Rademaker, Timothy~F. Brady, and John~T. Serences.
+\bibitem[Chunharas et~al.(2022)Chunharas, Rademaker, Brady, and
+  Serences]{chunharasAdaptivePerspectiveVisual2022a}
+Chaipat Chunharas, Rosanne~L. Rademaker, Timothy~F. Brady, and John~T.
+  Serences.
 \newblock An adaptive perspective on visual working memory distortions.
-\newblock \emph{Journal of Experimental Psychology: General}, 151\penalty0 (10):\penalty0 2300--2323, 2022.
+\newblock \emph{Journal of Experimental Psychology: General}, 151\penalty0
+  (10):\penalty0 2300--2323, 2022.
 \newblock ISSN 1939-2222.
 \newblock \doi{10.1037/xge0001191}.
 
 \bibitem[Souza and Oberauer(2016)]{souzaRetrocuesRetroactiveAttentional2016}
 Alessandra~S. Souza and Klaus Oberauer.
-\newblock In search of the focus of attention in working memory: 13 years of the retro-cue effect.
-\newblock \emph{Attention, Perception, \& Psychophysics}, 78\penalty0 (7):\penalty0 1839--1860, 2016.
+\newblock In search of the focus of attention in working memory: 13 years of
+  the retro-cue effect.
+\newblock \emph{Attention, Perception, \& Psychophysics}, 78\penalty0
+  (7):\penalty0 1839--1860, 2016.
 \newblock \doi{10.3758/s13414-016-1108-5}.
 
 \bibitem[Griffin and Nobre(2003)]{griffinSpeedTime2013}
 Iain~C. Griffin and Anna~C. Nobre.
 \newblock The speed of time in the {Attentional Blink}.
-\newblock \emph{Psychological Science}, 14\penalty0 (6):\penalty0 571--577, 2003.
+\newblock \emph{Psychological Science}, 14\penalty0 (6):\penalty0 571--577,
+  2003.
 \newblock \doi{10.1046/j.0956-7976.2003.psci_1459.x}.
-\newblock Representative citation for retrocue timing effects; see also Souza \& Oberauer 2016.
+\newblock Representative citation for retrocue timing effects; see also Souza
+  \& Oberauer 2016.
 
-\bibitem[Gunseli et~al.(2015)Gunseli, Fahrenfort, Moorselaar, Daoultzis, Meeter, and Olivers]{gunseliSerialOffloadingWorking2015}
-Eren Gunseli, Johannes~J. Fahrenfort, Dirk~van Moorselaar, Konstantinos~C. Daoultzis, Martijn Meeter, and Christian N.~L. Olivers.
-\newblock Serial offloading of working memory content to long-term memory during encoding.
-\newblock \emph{Journal of Experimental Psychology: Human Perception and Performance}, 41\penalty0 (6):\penalty0 1529--1543, 2015.
+\bibitem[Gunseli et~al.(2015)Gunseli, Fahrenfort, Moorselaar, Daoultzis,
+  Meeter, and Olivers]{gunseliSerialOffloadingWorking2015}
+Eren Gunseli, Johannes~J. Fahrenfort, Dirk~van Moorselaar, Konstantinos~C.
+  Daoultzis, Martijn Meeter, and Christian N.~L. Olivers.
+\newblock Serial offloading of working memory content to long-term memory
+  during encoding.
+\newblock \emph{Journal of Experimental Psychology: Human Perception and
+  Performance}, 41\penalty0 (6):\penalty0 1529--1543, 2015.
 \newblock \doi{10.1037/xhp0000105}.
 
-\bibitem[Oberauer et~al.(2018)Oberauer, Lewandowsky, Awh, Brown, Conway, Cowan, Donkin, Farrell, Hitch, Hurlstone, Ma, Morey, Nee, Schweppe, Vergauwe, and Ward]{oberauerBenchmarksModelsShortterm2018}
-Klaus Oberauer, Stephan Lewandowsky, Edward Awh, Gordon D.~A. Brown, Andrew Conway, Nelson Cowan, Christopher Donkin, Simon Farrell, Graham~J. Hitch, Mark~J. Hurlstone, Wei~Ji Ma, Candice~C. Morey, Derek~Evan Nee, Judith Schweppe, Evie Vergauwe, and Geoff Ward.
+\bibitem[Oberauer et~al.(2018)Oberauer, Lewandowsky, Awh, Brown, Conway, Cowan,
+  Donkin, Farrell, Hitch, Hurlstone, Ma, Morey, Nee, Schweppe, Vergauwe, and
+  Ward]{oberauerBenchmarksModelsShortterm2018}
+Klaus Oberauer, Stephan Lewandowsky, Edward Awh, Gordon D.~A. Brown, Andrew
+  Conway, Nelson Cowan, Christopher Donkin, Simon Farrell, Graham~J. Hitch,
+  Mark~J. Hurlstone, Wei~Ji Ma, Candice~C. Morey, Derek~Evan Nee, Judith
+  Schweppe, Evie Vergauwe, and Geoff Ward.
 \newblock Benchmarks for models of short-term and working memory.
-\newblock \emph{Psychological Bulletin}, 144\penalty0 (9):\penalty0 885--958, September 2018.
+\newblock \emph{Psychological Bulletin}, 144\penalty0 (9):\penalty0 885--958,
+  September 2018.
 \newblock ISSN 1939-1455, 0033-2909.
 \newblock \doi{10.1037/bul0000153}.
 
 \bibitem[Awh and Vogel(2025)]{awhWorkingMemoryNeeds2025}
 Edward Awh and Edward~K. Vogel.
 \newblock Working memory needs pointers.
-\newblock \emph{Trends in Cognitive Sciences}, 29\penalty0 (3):\penalty0 230--241, March 2025.
+\newblock \emph{Trends in Cognitive Sciences}, 29\penalty0 (3):\penalty0
+  230--241, March 2025.
 \newblock ISSN 13646613.
 \newblock \doi{10.1016/j.tics.2024.12.006}.
 
-\bibitem[Bays et~al.(2024)Bays, Schneegans, Ma, and Brady]{baysRepresentationComputationVisual2024}
+\bibitem[Bays et~al.(2024)Bays, Schneegans, Ma, and
+  Brady]{baysRepresentationComputationVisual2024}
 Paul~M. Bays, Sebastian Schneegans, Wei~Ji Ma, and Timothy~F. Brady.
 \newblock Representation and computation in visual working memory.
-\newblock \emph{Nature Human Behaviour}, 8\penalty0 (6):\penalty0 1016--1034, June 2024.
+\newblock \emph{Nature Human Behaviour}, 8\penalty0 (6):\penalty0 1016--1034,
+  June 2024.
 \newblock ISSN 2397-3374.
 \newblock \doi{10.1038/s41562-024-01871-2}.
 
 \bibitem[Tiao(2019)]{tiaoHandbookSparseVariational2019}
 Louis Tiao.
 \newblock A {{Handbook}} for {{Sparse Variational Gaussian Processes}}.
-\newblock https://tiao.io/post/sparse-variational-gaussian-processes/, September 2019.
+\newblock https://tiao.io/post/sparse-variational-gaussian-processes/,
+  September 2019.
 
-\bibitem[Leibfried et~al.(2022)Leibfried, Dutordoir, John, and Durrande]{leibfriedTutorialSparseGaussian2022}
+\bibitem[Leibfried et~al.(2022)Leibfried, Dutordoir, John, and
+  Durrande]{leibfriedTutorialSparseGaussian2022}
 Felix Leibfried, Vincent Dutordoir, S.~T. John, and Nicolas Durrande.
-\newblock A {{Tutorial}} on {{Sparse Gaussian Processes}} and {{Variational Inference}}, December 2022.
+\newblock A {{Tutorial}} on {{Sparse Gaussian Processes}} and {{Variational
+  Inference}}, December 2022.
 
 \bibitem[Carandini and Heeger(2012)]{carandiniNormalizationCanonicalNeural2012}
 Matteo Carandini and David~J. Heeger.
 \newblock Normalization as a canonical neural computation.
-\newblock \emph{Nature Reviews Neuroscience}, 13\penalty0 (1):\penalty0 51--62, 2012.
+\newblock \emph{Nature Reviews Neuroscience}, 13\penalty0 (1):\penalty0 51--62,
+  2012.
 \newblock \doi{10.1038/nrn3136}.
 
 \bibitem[Marr(1982)]{marrVision1982}
 David Marr.
-\newblock \emph{Vision: A Computational Investigation into the Human Representation and Processing of Visual Information}.
+\newblock \emph{Vision: A Computational Investigation into the Human
+  Representation and Processing of Visual Information}.
 \newblock W. H. Freeman, San Francisco, 1982.
 
 \bibitem[Li and Curtis(2023)]{liNeuralPopulationDynamics2023}
 Hsin-Hung Li and Clayton~E. Curtis.
 \newblock Neural population dynamics of human working memory.
-\newblock \emph{Current Biology}, 33\penalty0 (17):\penalty0 3775--3784.e4, September 2023.
+\newblock \emph{Current Biology}, 33\penalty0 (17):\penalty0 3775--3784.e4,
+  September 2023.
 \newblock ISSN 0960-9822.
 \newblock \doi{10.1016/j.cub.2023.07.067}.
 
-\bibitem[Manohar et~al.(2019)Manohar, Zokaei, Fallon, Vogels, and Husain]{manoharNeuralMechanismsAttending2019}
-Sanjay~G. Manohar, Nahid Zokaei, Sean~J. Fallon, Tim~P. Vogels, and Masud Husain.
+\bibitem[Manohar et~al.(2019)Manohar, Zokaei, Fallon, Vogels, and
+  Husain]{manoharNeuralMechanismsAttending2019}
+Sanjay~G. Manohar, Nahid Zokaei, Sean~J. Fallon, Tim~P. Vogels, and Masud
+  Husain.
 \newblock Neural mechanisms of attending to items in working memory.
-\newblock \emph{Neuroscience \& Biobehavioral Reviews}, 101:\penalty0 1--12, June 2019.
+\newblock \emph{Neuroscience \& Biobehavioral Reviews}, 101:\penalty0 1--12,
+  June 2019.
 \newblock ISSN 0149-7634.
 \newblock \doi{10.1016/j.neubiorev.2019.03.017}.
 
-\bibitem[G{\"o}rtler et~al.(2019)G{\"o}rtler, Kehlbeck, and Deussen]{gortlerVisualExplorationGaussian2019}
+\bibitem[G{\"o}rtler et~al.(2019)G{\"o}rtler, Kehlbeck, and
+  Deussen]{gortlerVisualExplorationGaussian2019}
 Jochen G{\"o}rtler, Rebecca Kehlbeck, and Oliver Deussen.
 \newblock A {{Visual Exploration}} of {{Gaussian Processes}}.
 \newblock \emph{Distill}, 4\penalty0 (4):\penalty0 e17, April 2019.
 \newblock ISSN 2476-0757.
 \newblock \doi{10.23915/distill.00017}.
 
-\bibitem[Gardner et~al.(2018)Gardner, Pleiss, Weinberger, Bindel, and Wilson]{gardnerGPyTorchBlackboxMatrixMatrix2018}
-Jacob~R. Gardner, Geoff Pleiss, Kilian~Q. Weinberger, David Bindel, and Andrew~Gordon Wilson.
-\newblock {GPyTorch}: Blackbox matrix-matrix {Gaussian} process inference with {GPU} acceleration.
-\newblock In \emph{Advances in Neural Information Processing Systems}, volume~31, 2018.
+\bibitem[Gardner et~al.(2018)Gardner, Pleiss, Weinberger, Bindel, and
+  Wilson]{gardnerGPyTorchBlackboxMatrixMatrix2018}
+Jacob~R. Gardner, Geoff Pleiss, Kilian~Q. Weinberger, David Bindel, and
+  Andrew~Gordon Wilson.
+\newblock {GPyTorch}: Blackbox matrix-matrix {Gaussian} process inference with
+  {GPU} acceleration.
+\newblock In \emph{Advances in Neural Information Processing Systems},
+  volume~31, 2018.
 
 \end{thebibliography}

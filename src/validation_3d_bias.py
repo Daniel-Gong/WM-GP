@@ -37,9 +37,18 @@ def run_3d_bias_experiment(
     encoding_epochs_list=(50, 75, 100),
     n_trials=None,
     save_dir=None,
+    nt_loc=30.0,
 ):
     """
     Run bias experiment varying both color distance and encoding epochs.
+
+    Parameters
+    ----------
+    nt_loc : float
+        Spatial location of the non-target (degrees).  Closer to the target
+        (0°) increases inter-item interference via kernel overlap, matching
+        the paper's same-hemifield placement (~67° angular separation with
+        ~4° visual-angle gap).
 
     Returns
     -------
@@ -52,7 +61,6 @@ def run_3d_bias_experiment(
         n_trials = config["experiment"]["n_trials"]
 
     t_loc = 0.0
-    nt_loc = 90.0
     normalization = config.get("normalization", None)
 
     total = len(distances) * len(encoding_epochs_list)
@@ -296,6 +304,7 @@ if __name__ == "__main__":
         config,
         distances=(0, 20, 45, 90, 135),
         encoding_epochs_list=(50, 75, 100, 150),
+        nt_loc=30.0,
     )
 
     plot_3d_bias(df, metric="Bias_pct")

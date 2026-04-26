@@ -24,7 +24,7 @@ sys.path.insert(0, _SRC)
 
 def _draw_pipeline(ax):
     """Panel A: high-level pipeline diagram."""
-    ax.set_xlim(0, 10)
+    ax.set_xlim(0, 10.5)
     ax.set_ylim(0, 2.5)
     ax.axis("off")
 
@@ -72,7 +72,7 @@ def _draw_pipeline(ax):
          "#6A1B9A"),
     ]
     for x, y, txt, color in math_labels:
-        ax.text(x, y, txt, ha="center", va="top", fontsize=6.5,
+        ax.text(x, y, txt, ha="center", va="top", fontsize=8.5,
                 color=color, style="italic")
 
 
@@ -122,14 +122,13 @@ def _draw_attention_gain(ax):
 
     ax.axhline(1.0, color="grey", linestyle=":", linewidth=1)
     ax.axvline(0, color="grey", linestyle=":", linewidth=0.8, alpha=0.5)
-    ax.set_xlabel("Location (°)", fontsize=8)
+    ax.set_xlabel("Distance from cued location (°)", fontsize=8)
     ax.set_ylabel("Attention weight $a(\\ell)$", fontsize=8)
     ax.set_title("Attention gain at cued location", fontsize=9, fontweight="bold")
     ax.legend(fontsize=7, loc="upper right")
     ax.set_xlim(-180, 180)
     ax.set_xticks([-180, -90, 0, 90, 180])
     ax.tick_params(labelsize=7)
-    ax.text(5, 1.3, "cued\nloc", ha="left", va="bottom", fontsize=6.5, color="grey")
 
 
 def _draw_inducing_grid(ax):

@@ -1,6 +1,6 @@
 experiment:
   set_sizes: [1, 2, 4, 6]
-  n_trials: 50
+  n_trials: 200
   random_seed: 42
   
 data:
@@ -34,7 +34,9 @@ attention:
 
 normalization:
   loc_pool_width: 60.0      # spatial pool width (degrees) — must reach the distractor
-  color_pool_width: 5.0     # color-axis smoothing width (degrees) — narrow to preserve asymmetry
+  color_pool_width: 30.0    # color-axis smoothing width (degrees) — wide enough that the
+                            # distractor's pool peak spreads to the target region only when
+                            # colors are similar (creates the inverted-U pattern)
   baseline_frac: 0.5        # semi-saturation constant as fraction of peak response
 
 output:
