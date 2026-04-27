@@ -47,7 +47,7 @@
 % ║  ABSTRACT                                                                 ║
 % ╚═══════════════════════════════════════════════════════════════════════════╝
 \begin{abstract}
-Visual working memory (VWM) supports the short-term retention of a small number of visual items, yet the computational principles governing how items are encoded, actively maintained, and later retrieved remain debated. Existing models characterize VWM as either discrete slots or divisible resources, but neither provides a unified, algorithmic-level account of the full range of behavioral phenomena. Here we introduce MemGP, a framework that reconceptualizes VWM as dynamic Bayesian inference over a continuous function on circular location--feature space, implemented via sparse variational Gaussian processes. Encoding corresponds to fitting a GP posterior to noisy sensory observations; maintenance operates through self-rehearsal against a forgetting pressure (KL divergence toward the prior), with goal-directed attention reweighting the variational objective; and retrieval evaluates the posterior at the probed location. Without ad hoc mechanisms, this single framework quantitatively reproduces set-size--dependent precision loss, apparent guessing behavior, retrocue benefits that scale with memory load, cue-timing sensitivity, flexible resource reallocation across sequential cues, and encoding-time--dependent repulsion bias---phenomena that previously required separate models. Formal model comparison confirms that MemGP's emergent error statistics match or surpass leading resource models (IL, EP, SA, VP). These results demonstrate that the core signatures of VWM capacity, precision, and attentional control emerge naturally from a single Bayesian inference process operating over a shared representational substrate.
+Visual working memory (VWM) supports the short-term retention of a small number of visual items, yet the computational principles governing how items are encoded, actively maintained, and later retrieved remain debated. Prominent models have largely framed VWM capacity in terms of either discrete slots or divisible resources, but neither provides a unified, algorithmic-level account of the full range of behavioral phenomena. Here we introduce MemGP, a framework that reconceptualizes VWM as dynamic Bayesian inference over a continuous function on circular location--feature space, implemented via sparse variational Gaussian processes. Encoding corresponds to fitting a GP posterior to noisy sensory observations; maintenance operates through self-rehearsal against a forgetting pressure (KL divergence toward the prior), with goal-directed attention reweighting the variational objective; and retrieval evaluates the posterior at the probed location. Without ad hoc mechanisms, this single framework quantitatively reproduces set-size--dependent precision loss, apparent guessing behavior, retrocue benefits that scale with memory load, cue-timing sensitivity, flexible resource reallocation across sequential cues, and encoding-time--dependent repulsion bias---phenomena that previously required separate models. Formal model comparison confirms that MemGP's emergent error statistics match or surpass leading resource models (IL, EP, SA, VP). These results demonstrate that the core signatures of VWM capacity, precision, and attentional control emerge naturally from a single Bayesian inference process operating over a shared representational substrate.
 \end{abstract}
 
 % ╔═══════════════════════════════════════════════════════════════════════════╗
@@ -112,7 +112,7 @@ where $G$ is the peak gain and $d(\cdot, \cdot)$ is circular distance. Absent a 
 
 We simulated 100 trials at each set size $N \in \{1, 2, 4, 6\}$ and measured signed recall errors ($N \times 100$ observations per condition). As set size increased, mean absolute error (MAE) rose monotonically from $7.3^\circ$ ($N\!=\!1$) to $38.4^\circ$ ($N\!=\!6$), and the signed-error distribution broadened and developed heavier tails characteristic of increasing uniform-component (``guess'') contributions (Fig.~\ref{fig:setsize}A--B).
 
-To place these results in the context of the resource-model literature, we fit uniform--Von~Mises mixture distributions \cite{zhangDiscreteFixedresolutionRepresentations2008b} to the pooled errors at each set size and compared the resulting mixture weight $w$ and circular standard deviation (CSD) against predictions from four benchmark models: Item-Limit (IL), Slots-plus-Averaging (SA), Equal-Precision (EP), and Variable-Precision (VP) \cite{vandenbergVariabilityEncodingPrecision2012} (Fig.~\ref{fig:setsize}C). The MemGP-derived mixture statistics showed a pattern of declining $w$ and increasing CSD with set size that closely tracked the VP model's predictions---the most flexible of the four benchmarks---while arising not from a hand-designed distributional assumption but as an emergent consequence of GP inference under finite-capacity constraints. Information-theoretic criteria (AIC, BIC) applied to the error likelihoods further support this alignment (Supplementary Table~1).
+To place these results in the context of the resource-model literature, we fit uniform--Von~Mises mixture distributions \cite{zhangDiscreteFixedresolutionRepresentations2008b} to the pooled errors at each set size and compared the resulting mixture weight $w$ and circular standard deviation (CSD) against predictions from four benchmark models: Item-Limit (IL), Slots-plus-Averaging (SA), Equal-Precision (EP), and Variable-Precision (VP) \cite{vandenbergVariabilityEncodingPrecision2012} (Fig.~\ref{fig:setsize}C). The MemGP-derived mixture statistics showed a pattern of declining $w$ and increasing CSD with set size that closely tracked the VP model's predictions---the most flexible of the four benchmarks---while arising not from a hand-designed distributional assumption but as an emergent consequence of GP inference under finite-capacity constraints. Information-theoretic criteria (AIC, BIC) applied to the error likelihoods further support this alignment (Supplementary Table~2).
 
 Overlaying approximate human data from Van den Berg et al. \cite{vandenbergVariabilityEncodingPrecision2012} confirms that MemGP's emergent error profile falls within the range of empirical observations across matching set sizes (Supplementary Fig.~S1).
 
@@ -122,9 +122,9 @@ Overlaying approximate human data from Van den Berg et al. \cite{vandenbergVaria
 
 A hallmark of VWM is its sensitivity to retrospective attentional cues (retrocues) presented during the retention interval. We simulated retrocue trials in which a spatial cue indicated one of $N$ memory items partway through the maintenance period. The attention gain (Eq.~\ref{eq:attention}) reweighted the maintenance ELBO, causing the GP posterior to sharpen around the cued item's location--color region at the expense of uncued items.
 
-\textbf{Retrocue benefit.} Across 50 trials at $N\!=\!4$, cued items were recalled with significantly lower error than uncued (neutral) items ($p < 0.05$, paired $t$-test), confirming a robust retrocue benefit (Fig.~\ref{fig:retrocue}B).
+\textbf{Retrocue benefit.} At both set sizes, cued items were recalled with significantly lower error than uncued (neutral) items: at $N\!=\!2$, cued MAE $= 9.5^\circ$ vs.\ neutral MAE $= 15.8^\circ$ ($t = 4.30$, $p < 10^{-4}$); at $N\!=\!4$, cued MAE $= 23.5^\circ$ vs.\ neutral MAE $= 35.3^\circ$ ($t = 4.60$, $p < 10^{-5}$), confirming a robust retrocue benefit at both load levels (Fig.~\ref{fig:retrocue}B).
 
-\textbf{Set-size interaction.} The retrocue benefit was significantly larger at $N\!=\!4$ than at $N\!=\!2$ ($p < 0.05$, independent-samples $t$-test), replicating the well-established empirical finding \cite{souzaRetrocuesRetroactiveAttentional2016, gunseliSerialOffloadingWorking2015} that selective cueing confers a greater advantage under higher memory load (Fig.~\ref{fig:retrocue}C).
+\textbf{Set-size interaction.} The retrocue benefit was significantly larger at $N\!=\!4$ ($11.8^\circ \pm 2.6^\circ$) than at $N\!=\!2$ ($6.4^\circ \pm 1.5^\circ$; $t = 1.83$, $p = 0.034$, one-tailed), replicating the well-established empirical finding \cite{souzaRetrocuesRetroactiveAttentional2016, gunseliSerialOffloadingWorking2015} that selective cueing confers a greater advantage under higher memory load (Fig.~\ref{fig:retrocue}C).
 
 \textbf{Cue timing.} Earlier retrocue onset (epoch 50 vs.\ 150 within a 200-epoch maintenance window) produced a larger benefit, as expected from greater cumulative attention-weighted rehearsal (Fig.~\ref{fig:retrocue}D).
 
@@ -337,7 +337,7 @@ where $\sigma_b$ is the baseline fraction.
 
 \begin{table}[H]
 \centering
-\caption{Configuration parameters across experiments.}
+\caption{\textbf{Configuration parameters across experiments.}}
 \label{tab:params}
 \small
 \begin{tabular}{lccc}
@@ -378,6 +378,24 @@ For each benchmark model $\mathcal{M}$ with $k$ free parameters fit by MLE to $n
 \end{align}
 where $\hat{L}$ is the maximized likelihood. Models with lower AIC/BIC are preferred. Parameter counts: IL ($k=3$: $K, \kappa_{\mathrm{mem}}, \kappa_r$), SA ($k=3$: $K, J_1, \kappa_r$), EP ($k=3$: $J_1, \alpha, \kappa_r$), VP ($k=4$: $\bar{J}_1, \alpha, \tau, \kappa_r$).
 
+\begin{table}[H]
+\centering
+\caption{\textbf{Information-theoretic model comparison.}
+AIC, BIC, and AICc for four benchmark models fit by MLE to $n = 1{,}300$ pooled MemGP simulation errors (100 trials $\times$ set sizes 1, 2, 4, 6). $\Delta$AIC and $\Delta$BIC are differences from the best-fitting model (VP). By conventional guidelines ($\Delta > 10$ indicates essentially no support; Burnham \& Anderson, 2002), VP is decisively preferred.}
+\label{tab:ic}
+\small
+\begin{tabular}{lccrrrrr}
+\toprule
+\textbf{Model} & $k$ & $-\ln\hat{L}$ & \textbf{AIC} & \textbf{BIC} & \textbf{AICc} & $\Delta$\textbf{AIC} & $\Delta$\textbf{BIC} \\
+\midrule
+VP & 4 & 724.4 & 1456.9 & 1477.6 & 1456.9 & 0.0 & 0.0 \\
+IL & 3 & 745.6 & 1497.1 & 1512.6 & 1497.1 & 40.2 & 35.1 \\
+SA & 3 & 780.3 & 1566.7 & 1582.2 & 1566.7 & 109.8 & 104.6 \\
+EP & 3 & 967.6 & 1941.2 & 1956.7 & 1941.2 & 484.3 & 479.2 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 
 \subsection*{S4. Parameter sensitivity analysis}
 
@@ -392,7 +410,7 @@ To assess the robustness of MemGP's qualitative predictions, we systematically v
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{figures/fig_param_sensitivity.pdf}
-    \caption{\textbf{Supplementary Figure S2: Parameter sensitivity analysis.}
+    \caption{\textbf{Parameter sensitivity analysis.}
     Mean absolute error vs.\ set size under systematic variation of three key model parameters.
     \textbf{(A)}~Inducing grid size $m \in \{6, 10, 16\}$ ($M = m^2$ inducing points): larger grids reduce error at all set sizes, but the monotonic set-size gradient is preserved.
     \textbf{(B)}~KL weight $\beta \in \{0.1, 1, 5\}$: higher $\beta$ accelerates forgetting and increases error, while the qualitative set-size pattern remains stable.
@@ -403,7 +421,7 @@ To assess the robustness of MemGP's qualitative predictions, we systematically v
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{figures/fig_human_overlay_setsize.pdf}
-    \caption{\textbf{Supplementary Figure S1: Comparison with human data.}
+    \caption{\textbf{Comparison with human data.}
     MemGP mixture statistics ($w$, CSD) overlaid with approximate human data from Van den Berg et al.\ (2012). The model's emergent error profile falls within the empirical range.}
     \label{fig:human_overlay}
 \end{figure}

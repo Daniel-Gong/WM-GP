@@ -12,6 +12,11 @@ CSD = circular SD of that component, sqrt(-2 ln(I₁(κ)/I₀(κ))).
 Empirical summaries are compared to predictions from each model after
 maximum-likelihood parameter estimation on pooled circular errors.
 Figure layout follows Figure 4A of the PNAS paper (2×4: w and CSD × four models).
+
+CSD panel “best” highlight uses a composite score (normalized RMSE plus a penalty when
+the predicted CSD does not rank with the empirical CSD across set sizes), because raw
+RMSE alone can favor a flat curve near the mean. Full model comparison should still
+rely on likelihood-based criteria (AIC/BIC in the CSV output).
 """
 from __future__ import annotations
 
@@ -25,7 +30,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize, brentq, differential_evolution
 from scipy.special import i0e, i1e
-from scipy.stats import vonmises, gamma as gamma_dist
+from scipy.stats import spearmanr, vonmises, gamma as gamma_dist
 
 # package imports (run from repo root or with src on path)
 _SRC = os.path.dirname(os.path.abspath(__file__))
@@ -381,6 +386,40 @@ def mle_objective(
     return -ll
 
 
+def _lbfgs_polish(
+    objective: Callable[[np.ndarray], float],
+    x0: np.ndarray,
+    bounds: List[Tuple[float, float]],
+) -> Tuple[np.ndarray, float]:
+    """Refine DE solution (same box bounds)."""
+    res = minimize(
+        objective,
+        x0=np.asarray(x0, dtype=float),
+        method="L-BFGS-B",
+        bounds=bounds,
+        options={"maxiter": 280},
+    )
+    return res.x, float(res.fun)
+
+
+def spearman_rho(a: np.ndarray, b: np.ndarray) -> float:
+    r, _ = spearmanr(a, b)
+    if not np.isfinite(r):
+        return -1.0
+    return float(r)
+
+
+def csd_composite_rank_score(c_emp: np.ndarray, pred: np.ndarray, rho_weight: float = 0.35) -> float:
+    """
+    Lower is better. Penalizes predictions that do not co-vary with empirical CSD
+    (e.g. flat SA curves while data rise with set size).
+    """
+    rm = rmse(c_emp, pred)
+    rho = spearman_rho(c_emp, pred)
+    scale = float(np.std(c_emp) + 1e-6)
+    return (rm / scale) + rho_weight * (1.0 - rho)
+
+
 def fit_all_models(
     errors_by_n: Dict[int, np.ndarray],
     set_sizes: List[int],
@@ -454,15 +493,18 @@ def fit_all_models(
 
     bounds_il = [(0.5, 12.0), (-2.5, 4.5), (-2.5, 4.5)]
     r_il = differential_evolution(
-        lambda x: obj_il(x), bounds_il, seed=seed + 1, maxiter=de_maxiter, tol=0.05, polish=True
+        lambda x: obj_il(x), bounds_il, seed=seed + 1, maxiter=de_maxiter, tol=0.05, polish=False
     )
-    K_il, km_il, kr_il = pack_il(r_il.x)
+    x_il, nll_il = _lbfgs_polish(obj_il, r_il.x, bounds_il)
+    if obj_il(r_il.x) < nll_il:
+        x_il, nll_il = r_il.x, float(obj_il(r_il.x))
+    K_il, km_il, kr_il = pack_il(x_il)
 
     wm, cm, wl, wh, cl, ch = pred_curves(
         lambda rg, N, ntr: sample_errors_il(rg, N, K_il, km_il, kr_il, ntr),
     )
     fits["IL"] = FitResult(
-        "IL", np.array([K_il, km_il, kr_il]), float(r_il.fun),
+        "IL", np.array([K_il, km_il, kr_il]), nll_il,
         wm, cm, wl, wh, cl, ch,
     )
 
@@ -479,15 +521,18 @@ def fit_all_models(
 
     bounds_sa = [(0.5, 12.0), (-2.0, 4.5), (-2.5, 4.5)]
     r_sa = differential_evolution(
-        lambda x: obj_sa(x), bounds_sa, seed=seed + 2, maxiter=de_maxiter, tol=0.05, polish=True
+        lambda x: obj_sa(x), bounds_sa, seed=seed + 2, maxiter=de_maxiter, tol=0.05, polish=False
     )
-    K_sa, J1_sa, kr_sa = pack_sa(r_sa.x)
+    x_sa, nll_sa = _lbfgs_polish(obj_sa, r_sa.x, bounds_sa)
+    if obj_sa(r_sa.x) < nll_sa:
+        x_sa, nll_sa = r_sa.x, float(obj_sa(r_sa.x))
+    K_sa, J1_sa, kr_sa = pack_sa(x_sa)
 
     wm, cm, wl, wh, cl, ch = pred_curves(
         lambda rg, N, ntr: sample_errors_sa(rg, N, K_sa, J1_sa, kr_sa, ntr),
     )
     fits["SA"] = FitResult(
-        "SA", np.array([K_sa, J1_sa, kr_sa]), float(r_sa.fun),
+        "SA", np.array([K_sa, J1_sa, kr_sa]), nll_sa,
         wm, cm, wl, wh, cl, ch,
     )
 
@@ -504,15 +549,18 @@ def fit_all_models(
 
     bounds_ep = [(-1.5, 4.5), (-2.5, 1.5), (-2.5, 4.5)]
     r_ep = differential_evolution(
-        lambda x: obj_ep(x), bounds_ep, seed=seed + 3, maxiter=de_maxiter, tol=0.05, polish=True
+        lambda x: obj_ep(x), bounds_ep, seed=seed + 3, maxiter=de_maxiter, tol=0.05, polish=False
     )
-    J1_ep, al_ep, kr_ep = pack_ep(r_ep.x)
+    x_ep, nll_ep = _lbfgs_polish(obj_ep, r_ep.x, bounds_ep)
+    if obj_ep(r_ep.x) < nll_ep:
+        x_ep, nll_ep = r_ep.x, float(obj_ep(r_ep.x))
+    J1_ep, al_ep, kr_ep = pack_ep(x_ep)
 
     wm, cm, wl, wh, cl, ch = pred_curves(
         lambda rg, N, ntr: sample_errors_ep(rg, N, J1_ep, al_ep, kr_ep, ntr),
     )
     fits["EP"] = FitResult(
-        "EP", np.array([J1_ep, al_ep, kr_ep]), float(r_ep.fun),
+        "EP", np.array([J1_ep, al_ep, kr_ep]), nll_ep,
         wm, cm, wl, wh, cl, ch,
     )
 
@@ -525,7 +573,7 @@ def fit_all_models(
         J1b, al, tau, kr = pack_vp(xx)
 
         def logp(e, N):
-            return log_density_vp(e, N, J1b, al, tau, kr, n_q=72)
+            return log_density_vp(e, N, J1b, al, tau, kr, n_q=112)
 
         return mle_objective(xx, err_all, n_all, lambda e, N: logp(e, N))
 
@@ -534,17 +582,20 @@ def fit_all_models(
         lambda x: obj_vp(x),
         bounds_vp,
         seed=seed + 4,
-        maxiter=max(de_maxiter - 5, 20),
-        tol=0.06,
-        polish=True,
+        maxiter=de_maxiter,
+        tol=0.05,
+        polish=False,
     )
-    J1_vp, al_vp, tau_vp, kr_vp = pack_vp(r_vp.x)
+    x_vp, nll_vp = _lbfgs_polish(obj_vp, r_vp.x, bounds_vp)
+    if obj_vp(r_vp.x) < nll_vp:
+        x_vp, nll_vp = r_vp.x, float(obj_vp(r_vp.x))
+    J1_vp, al_vp, tau_vp, kr_vp = pack_vp(x_vp)
 
     wm, cm, wl, wh, cl, ch = pred_curves(
         lambda rg, N, ntr: sample_errors_vp(rg, N, J1_vp, al_vp, tau_vp, kr_vp, ntr),
     )
     fits["VP"] = FitResult(
-        "VP", np.array([J1_vp, al_vp, tau_vp, kr_vp]), float(r_vp.fun),
+        "VP", np.array([J1_vp, al_vp, tau_vp, kr_vp]), nll_vp,
         wm, cm, wl, wh, cl, ch,
     )
 
@@ -626,8 +677,17 @@ def plot_figure4a_fixed(
     c_sem = np.array([empirical[N][3] for N in set_sizes])
     rms_w = [rmse(w_emp, fits[m].x_pred_w) for m in models]
     rms_c = [rmse(c_emp, fits[m].x_pred_csd) for m in models]
+    c_rank_scores = [csd_composite_rank_score(c_emp, fits[m].x_pred_csd) for m in models]
+    rhos_c = [spearman_rho(c_emp, fits[m].x_pred_csd) for m in models]
     best_w = np.min(rms_w)
-    best_c = np.min(rms_c)
+    best_c_rank = np.min(c_rank_scores)
+
+    _hi = [float((c_emp + c_sem).max())]
+    for m in models:
+        fr = fits[m]
+        _hi.append(float(np.max(fr.x_pred_csd)))
+        _hi.append(float(np.max(fr.csd_ribbon_hi)))
+    c_ylim_hi = float(np.max(_hi) * 1.08)
 
     fig, axes = plt.subplots(2, 4, figsize=(12.5, 6.0), sharex=True)
     for col, mid in enumerate(models):
@@ -644,11 +704,21 @@ def plot_figure4a_fixed(
         axc.plot(xs, fr.x_pred_csd, color=colors[mid], linewidth=2)
         axc.errorbar(xs, c_emp, yerr=c_sem, fmt="o", color="black", capsize=3, markersize=5, markerfacecolor="white")
         rc = rms_c[col]
-        kc = {"fontweight": "bold"} if rc == best_c else {}
-        axc.text(0.97, 0.06, f"RMSE\n{rc:.3f}", transform=axc.transAxes, ha="right", va="bottom", fontsize=9, **kc)
+        rho_c = rhos_c[col]
+        kc = {"fontweight": "bold"} if c_rank_scores[col] == best_c_rank else {}
+        axc.text(
+            0.97,
+            0.04,
+            f"RMSE {rc:.3f}\nρ={rho_c:.2f}",
+            transform=axc.transAxes,
+            ha="right",
+            va="bottom",
+            fontsize=8,
+            **kc,
+        )
 
         axw.set_ylim(0, 1.05)
-        axc.set_ylim(0.05, None)
+        axc.set_ylim(0.05, c_ylim_hi)
         mn, mx = min(set_sizes), max(set_sizes)
         axw.set_xlim(mn - 0.2, mx + 0.2)
         axc.set_xlim(mn - 0.2, mx + 0.2)
@@ -659,7 +729,12 @@ def plot_figure4a_fixed(
             axw.set_ylabel("$w$")
             axc.set_ylabel("CSD (rad)")
         axc.set_xlabel("Set size")
-    fig.suptitle("Uniform–Von Mises mixture vs set size (MemGP sim) " + title_suffix, fontsize=12)
+    fig.suptitle(
+        "Uniform–Von Mises mixture vs set size (MemGP sim) "
+        + title_suffix
+        + "\n(CSD: bold = lowest RMSE/σ(emp) + 0.35·(1−ρ); raw RMSE alone can favor flat misfits)",
+        fontsize=11,
+    )
     plt.tight_layout()
     os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
     plt.savefig(save_path, dpi=150, bbox_inches="tight")

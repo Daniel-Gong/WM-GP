@@ -155,33 +155,54 @@ def _subject_retrocue(config: dict, target_set_size: int = 4):
     }
 
 
-def _subject_bias(config: dict):
+def _subject_bias(
+    config: dict,
+    distances=(20, 45, 90, 135),
+    encoding_epochs_list=(50, 100, 150, 200),
+    nt_loc=90.0,
+):
     """
-    Run one subject's bias (distance sweep) experiment.
+    Run one subject's bias experiment across distance × encoding epochs.
 
     Returns
     -------
-    dict  {distance: mean_bias_deg}  (distances as defined in config or default)
+    list of dicts, each with keys:
+        Distance_deg, Encoding_Epochs, Bias_pct, Bias_deg
     """
-    n_items   = 2
-    distances = np.linspace(11.25, 90.0, 6)
-    t_loc     = 0.0
-    nt_loc    = 90.0
-    result    = {}
+    t_loc = 0.0
+    normalization = config.get("normalization", None)
+    n_trials = config["experiment"]["n_trials"]
+    results = []
 
-    for dist in tqdm(distances, desc="  Distance Sweep", leave=False):
-        signed_errors = []
-        for t in trange(config["experiment"]["n_trials"], leave=False):
-            t_col  = int(np.random.uniform(-180.0, 180.0))
-            nt_col = (t_col + dist + 180.0) % 360.0 - 180.0
-            items  = [(t_loc, t_col), (nt_loc, nt_col)]
+    for enc_epochs in encoding_epochs_list:
+        for dist in distances:
+            signed_errors = []
+            desc = f"  Enc={enc_epochs}, Dist={dist}°"
 
-            model, _, _ = run_simulation_trial(items, config)
-            signed_errors.append(retrieve_color(model, t_loc, t_col))
+            for _ in trange(n_trials, desc=desc, leave=False):
+                t_col = int(np.random.uniform(-180.0, 180.0))
+                nt_col = (t_col + dist + 180.0) % 360.0 - 180.0
+                items = [(t_loc, t_col), (nt_loc, nt_col)]
 
-        result[dist] = float(np.mean(signed_errors))
+                model, _, _ = run_simulation_trial(
+                    items, config, encoding_epochs=enc_epochs,
+                )
+                s_err = retrieve_color(
+                    model, t_loc, t_col, normalization=normalization,
+                )
+                signed_errors.append(s_err)
 
-    return result
+            num_repulsion = sum(1 for e in signed_errors if e < 0)
+            bias_pct = (num_repulsion / len(signed_errors)) * 100 - 50
+
+            results.append({
+                "Distance_deg": dist,
+                "Encoding_Epochs": enc_epochs,
+                "Bias_pct": bias_pct,
+                "Bias_deg": float(np.mean(signed_errors)),
+            })
+
+    return results
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -303,54 +324,151 @@ def plot_retrocue_benefit_subjects(subject_records, target_set_size=4, save_dir=
     print(f"  Saved → {out}")
 
 
-def plot_bias_effect_subjects(subject_records, save_dir=None):
+def plot_bias_effect_subjects(df_all, save_dir=None):
     """
+    Multi-line plots of bias vs color distance (one line per encoding epoch),
+    with ±1 SEM bands computed across subjects.
+
+    Produces two figures: one for Bias_pct and one for Bias_deg.
+
     Parameters
     ----------
-    subject_records : list of dicts  {distance: mean_bias_deg}
+    df_all : pd.DataFrame
+        Must contain columns: Subject, Distance_deg, Encoding_Epochs,
+        Bias_pct, Bias_deg.
     """
     save_dir = _abs_save_dir(save_dir, "visualizations")
-    distances = sorted(subject_records[0].keys())
-    n_subj    = len(subject_records)
+    os.makedirs(save_dir, exist_ok=True)
 
-    # (n_subj, n_distances) array of per-subject mean biases
-    bias_arr = np.array([[r[d] for d in distances] for r in subject_records])
+    distances = sorted(df_all["Distance_deg"].unique())
+    enc_epochs = sorted(df_all["Encoding_Epochs"].unique())
+    n_subj = df_all["Subject"].nunique()
 
-    group_mean = bias_arr.mean(axis=0)
-    group_sem  = stats.sem(bias_arr, axis=0)
+    line_colors = ["#4A90D9", "#E8834A", "#4CAF50", "#800080"]
+    markers = ["o", "s", "^", "D"]
 
-    dist_arr = np.array(distances)
+    for metric, ylabel, suffix in [
+        ("Bias_pct", "% Repulsion Bias", "pct"),
+        ("Bias_deg", "Bias (°)", "deg"),
+    ]:
+        fig, ax = plt.subplots(figsize=(7, 5))
 
-    fig, ax = plt.subplots(figsize=(7, 5))
+        for i, enc in enumerate(enc_epochs):
+            grp = df_all[df_all["Encoding_Epochs"] == enc]
+            agg = grp.groupby("Distance_deg")[metric]
+            means = agg.mean()
+            sems = agg.apply(stats.sem)
 
-    # Individual subject lines
-    for subj_row in bias_arr:
-        ax.plot(dist_arr, subj_row, color="mediumpurple",
-                linewidth=0.8, alpha=0.35)
+            c = line_colors[i % len(line_colors)]
+            ax.plot(
+                means.index, means.values,
+                color=c, marker=markers[i % len(markers)],
+                markersize=8, linewidth=2,
+                label=f"{enc} epochs",
+            )
+            ax.fill_between(
+                means.index,
+                means.values - sems.values,
+                means.values + sems.values,
+                color=c, alpha=0.18,
+            )
 
-    # Group mean ± SEM
-    ax.errorbar(
-        dist_arr, group_mean, yerr=group_sem,
-        marker="o", linestyle="-", color="purple", markersize=8,
-        capsize=5, capthick=1.8, elinewidth=1.8, ecolor="purple",
-        label=f"Group mean ± SEM  (N={n_subj} subjects)",
+        ax.axhline(0, color="gray", linewidth=0.8, linestyle="--")
+        ax.set_xticks(distances)
+        ax.set_xlabel("Color Distance (°)", fontsize=13)
+        ax.set_ylabel(ylabel, fontsize=13)
+        ax.set_title(
+            f"Bias vs Color Distance  (N={n_subj} subjects, ±1 SEM)",
+            fontsize=12,
+        )
+        ax.legend(fontsize=11, framealpha=0.9)
+        ax.tick_params(labelsize=11)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        fig.tight_layout()
+
+        out = os.path.join(save_dir, f"bias_line_subjects_{suffix}.png")
+        plt.savefig(out, dpi=200, bbox_inches="tight")
+        plt.close(fig)
+        print(f"  Saved → {out}")
+
+
+def plot_collapsed_bias_bars_subjects(df_all, epoch_levels=None, save_dir=None):
+    """
+    Bar plots of bias collapsed across color distances, with SEM across subjects.
+
+    Produces two figures: % repulsion bias and repulsion in degrees (negated
+    so positive = repulsion).
+
+    Parameters
+    ----------
+    df_all : pd.DataFrame
+        Must contain columns: Subject, Distance_deg, Encoding_Epochs,
+        Bias_pct, Bias_deg.
+    """
+    save_dir = _abs_save_dir(save_dir, "visualizations")
+    os.makedirs(save_dir, exist_ok=True)
+
+    if epoch_levels is None:
+        epoch_levels = tuple(sorted(df_all["Encoding_Epochs"].unique()))
+
+    sub = df_all[df_all["Encoding_Epochs"].isin(epoch_levels)].copy()
+    n_subj = sub["Subject"].nunique()
+
+    collapsed = (
+        sub.groupby(["Subject", "Encoding_Epochs"])
+        .agg(Bias_pct=("Bias_pct", "mean"), Bias_deg=("Bias_deg", "mean"))
+        .reset_index()
     )
 
-    ax.axhline(0, color="black", linestyle="--", linewidth=1.5)
-    ax.set_title("Attraction/Repulsion Bias vs Featural Distance\n(across subjects)", fontsize=13)
-    ax.set_xlabel("Target–Distractor Distance (°)", fontsize=12)
-    ax.set_ylabel("Bias (°)\n(−) Repulsion  |  (+) Attraction", fontsize=12)
-    ax.legend(fontsize=9)
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.grid(True, linestyle="--", alpha=0.6)
-    fig.tight_layout()
+    bar_colors = ["#4A90D9", "#E8834A", "#4CAF50", "#800080"]
+    x = np.arange(len(epoch_levels))
+    width = 0.55
 
-    os.makedirs(save_dir, exist_ok=True)
-    out = os.path.join(save_dir, "bias_effect_subjects.png")
-    fig.savefig(out, dpi=150)
-    plt.close(fig)
-    print(f"  Saved → {out}")
+    for metric, ylabel, unit, suffix, sign in [
+        ("Bias_pct", "% Repulsion Bias", "%", "pct", 1),
+        ("Bias_deg", "Repulsion Bias (°)", "°", "deg", -1),
+    ]:
+        means, sems = [], []
+        for enc in epoch_levels:
+            vals = collapsed.loc[
+                collapsed["Encoding_Epochs"] == enc, metric
+            ].values * sign
+            means.append(vals.mean())
+            sems.append(stats.sem(vals))
+
+        fig, ax = plt.subplots(figsize=(5, 5))
+        ax.bar(
+            x, means, width, yerr=sems, capsize=6,
+            color=bar_colors[: len(epoch_levels)], edgecolor="black",
+            linewidth=0.8, error_kw=dict(lw=1.5),
+        )
+        ax.axhline(0, color="gray", linewidth=0.8, linestyle="--")
+        ax.set_xticks(x)
+        ax.set_xticklabels([str(e) for e in epoch_levels], fontsize=12)
+        ax.set_xlabel("Encoding Epochs", fontsize=13)
+        ax.set_ylabel(ylabel, fontsize=13)
+        ax.set_title(
+            f"Repulsion Bias ({unit}) by Encoding Epochs\n"
+            f"(N={n_subj} subjects, collapsed across distances)",
+            fontsize=12,
+        )
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.tick_params(labelsize=11)
+
+        for i, (m, s) in enumerate(zip(means, sems)):
+            offset = s + (1.5 if suffix == "pct" else 0.3)
+            ax.text(
+                i, m + offset, f"{m:.1f}{unit}",
+                ha="center", fontsize=10, fontweight="bold",
+            )
+
+        fig.tight_layout()
+        out = os.path.join(save_dir, f"bias_collapsed_subjects_{suffix}.png")
+        plt.savefig(out, dpi=200, bbox_inches="tight")
+        plt.close(fig)
+        print(f"  Saved → {out}")
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -439,43 +557,57 @@ def run_bias_experiment_subjects(
     base_config: dict,
     n_subjects: int = 10,
     n_trials: int = 100,
+    distances=(20, 45, 90, 135),
+    encoding_epochs_list=(50, 100, 150, 200),
+    nt_loc: float = 90.0,
     save_dir=None,
 ):
     save_dir = _abs_save_dir(save_dir, "visualizations", "subjects", "bias")
-    print(f"\n=== Bias Experiment — {n_subjects} subjects × {n_trials} trials ===")
-    subject_records = []
+    n_cond = len(distances) * len(encoding_epochs_list)
+    print(
+        f"\n=== Bias Experiment — {n_subjects} subjects × {n_trials} trials "
+        f"× {n_cond} conditions ==="
+    )
 
+    all_rows = []
     for subj in range(n_subjects):
         print(f"\n── Subject {subj + 1}/{n_subjects} ──")
-        cfg    = _patch_config(base_config, n_trials, subj)
-        record = _subject_bias(cfg)
-        subject_records.append(record)
+        cfg = _patch_config(base_config, n_trials, subj)
+        records = _subject_bias(
+            cfg,
+            distances=distances,
+            encoding_epochs_list=encoding_epochs_list,
+            nt_loc=nt_loc,
+        )
+        for rec in records:
+            rec["Subject"] = subj
+            all_rows.append(rec)
 
-    # Save
+    df_all = pd.DataFrame(all_rows)
+
     os.makedirs(save_dir, exist_ok=True)
-    rows = []
-    distances = sorted(subject_records[0].keys())
-    for subj_idx, rec in enumerate(subject_records):
-        for d in distances:
-            rows.append({"Subject": subj_idx, "Distance_deg": d, "Bias_deg": rec[d]})
-    df_all = pd.DataFrame(rows)
     df_all.to_csv(os.path.join(save_dir, "bias_subjects_raw.csv"), index=False)
 
-    group_rows = []
-    for d in distances:
-        biases = [r[d] for r in subject_records]
-        group_rows.append({
-            "Distance_deg":   d,
-            "Group Mean Bias": np.mean(biases),
-            "Group SEM Bias":  stats.sem(biases),
-        })
-    df_group = pd.DataFrame(group_rows)
-    df_group.to_csv(os.path.join(save_dir, "bias_group_summary.csv"), index=False)
+    # Group summary: mean ± SEM across subjects per condition
+    group = (
+        df_all.groupby(["Encoding_Epochs", "Distance_deg"])
+        .agg(
+            Mean_Bias_pct=("Bias_pct", "mean"),
+            SEM_Bias_pct=("Bias_pct", lambda x: stats.sem(x)),
+            Mean_Bias_deg=("Bias_deg", "mean"),
+            SEM_Bias_deg=("Bias_deg", lambda x: stats.sem(x)),
+        )
+        .reset_index()
+    )
+    group.to_csv(os.path.join(save_dir, "bias_group_summary.csv"), index=False)
     print("\nGroup summary:")
-    print(df_group.to_string(index=False))
+    print(group.to_string(index=False))
 
-    plot_bias_effect_subjects(subject_records, save_dir=save_dir)
-    return subject_records
+    plot_bias_effect_subjects(df_all, save_dir=save_dir)
+    plot_collapsed_bias_bars_subjects(
+        df_all, epoch_levels=encoding_epochs_list, save_dir=save_dir,
+    )
+    return df_all
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -545,6 +677,9 @@ def main():
             base_config,
             n_subjects=args.n_subjects,
             n_trials=args.n_trials,
+            distances=(20, 45, 90, 135),
+            encoding_epochs_list=(50, 100, 150, 200),
+            nt_loc=90.0,
             save_dir=save_dir,
         )
 

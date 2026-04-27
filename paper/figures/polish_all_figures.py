@@ -269,6 +269,16 @@ def figure3_retrocue():
         ax.axhline(0, color="grey", linestyle="--", linewidth=0.6)
         ax.set_ylabel("Retrocue benefit (°)")
         ax.set_title("Benefit $\\times$ set size")
+        comp_path = os.path.join(_VIS_DIR, "retrocue_setsize_comparison.csv")
+        if os.path.exists(comp_path):
+            df_comp = pd.read_csv(comp_path)
+            p_comp = df_comp["p_val"].iloc[0]
+            sig = "***" if p_comp < 0.001 else ("**" if p_comp < 0.01 else ("*" if p_comp < 0.05 else "ns"))
+            y_top = max(benefit + benefit_sem) + 1.5
+            x0, x1 = 0, len(df_rc) - 1
+            ax.plot([x0, x0, x1, x1], [y_top - 0.5, y_top, y_top, y_top - 0.5],
+                    color="black", linewidth=0.8)
+            ax.text((x0 + x1) / 2, y_top + 0.3, sig, ha="center", fontsize=7, fontweight="bold")
         ax.text(-0.22, 1.08, labels[panel_idx], transform=ax.transAxes,
                 fontsize=12, fontweight="bold")
         panel_idx += 1

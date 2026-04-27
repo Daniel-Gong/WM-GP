@@ -294,6 +294,88 @@ def plot_line_bias(df, metric="Bias_deg", save_dir=None):
 
 
 # ---------------------------------------------------------------------------
+# Collapsed bar plots: marginal effect of encoding epochs
+# ---------------------------------------------------------------------------
+
+def plot_collapsed_bias_bars(df, epoch_levels=(50, 100, 150), save_dir=None):
+    """
+    Two bar plots showing bias collapsed across color distances for each
+    encoding epoch level.  Panel 1: % repulsion bias.  Panel 2: repulsion
+    in degrees (sign-flipped so positive = repulsion away from distractor).
+    """
+    if save_dir is None:
+        save_dir = _DEFAULT_VIS_DIR
+    os.makedirs(save_dir, exist_ok=True)
+
+    sub = df[df["Encoding_Epochs"].isin(epoch_levels)].copy()
+
+    bar_colors = ["#4A90D9", "#E8834A", "#4CAF50"]
+    x_labels = [f"{e}" for e in epoch_levels]
+    x = np.arange(len(epoch_levels))
+    width = 0.55
+
+    # --- Panel 1: % Repulsion Bias ---
+    means_pct, sems_pct = [], []
+    for enc in epoch_levels:
+        vals = sub.loc[sub["Encoding_Epochs"] == enc, "Bias_pct"].values
+        means_pct.append(vals.mean())
+        sems_pct.append(vals.std(ddof=1) / np.sqrt(len(vals)))
+
+    fig, ax = plt.subplots(figsize=(5, 5))
+    bars = ax.bar(x, means_pct, width, yerr=sems_pct, capsize=6,
+                  color=bar_colors[:len(epoch_levels)], edgecolor="black",
+                  linewidth=0.8, error_kw=dict(lw=1.5))
+    ax.axhline(0, color="gray", linewidth=0.8, linestyle="--")
+    ax.set_xticks(x)
+    ax.set_xticklabels(x_labels, fontsize=12)
+    ax.set_xlabel("Encoding Epochs", fontsize=13)
+    ax.set_ylabel("% Repulsion Bias", fontsize=13)
+    ax.set_title("Repulsion Bias (%) by Encoding Epochs\n(collapsed across color distances)",
+                 fontsize=12)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.tick_params(labelsize=11)
+    for i, (m, s) in enumerate(zip(means_pct, sems_pct)):
+        ax.text(i, m + s + 1.5, f"{m:.1f}%", ha="center", fontsize=10,
+                fontweight="bold")
+    fig.tight_layout()
+    filepath = os.path.join(save_dir, "bias_collapsed_pct.png")
+    plt.savefig(filepath, dpi=200, bbox_inches="tight")
+    plt.close()
+    print(f"Collapsed pct bar plot saved to {filepath}")
+
+    # --- Panel 2: Repulsion in degrees (negated so positive = repulsion) ---
+    means_deg, sems_deg = [], []
+    for enc in epoch_levels:
+        vals = -sub.loc[sub["Encoding_Epochs"] == enc, "Bias_deg"].values
+        means_deg.append(vals.mean())
+        sems_deg.append(vals.std(ddof=1) / np.sqrt(len(vals)))
+
+    fig, ax = plt.subplots(figsize=(5, 5))
+    bars = ax.bar(x, means_deg, width, yerr=sems_deg, capsize=6,
+                  color=bar_colors[:len(epoch_levels)], edgecolor="black",
+                  linewidth=0.8, error_kw=dict(lw=1.5))
+    ax.axhline(0, color="gray", linewidth=0.8, linestyle="--")
+    ax.set_xticks(x)
+    ax.set_xticklabels(x_labels, fontsize=12)
+    ax.set_xlabel("Encoding Epochs", fontsize=13)
+    ax.set_ylabel("Repulsion Bias (°)", fontsize=13)
+    ax.set_title("Repulsion Bias (°) by Encoding Epochs\n(collapsed across color distances)",
+                 fontsize=12)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.tick_params(labelsize=11)
+    for i, (m, s) in enumerate(zip(means_deg, sems_deg)):
+        ax.text(i, m + s + 0.3, f"{m:.1f}°", ha="center", fontsize=10,
+                fontweight="bold")
+    fig.tight_layout()
+    filepath = os.path.join(save_dir, "bias_collapsed_deg.png")
+    plt.savefig(filepath, dpi=200, bbox_inches="tight")
+    plt.close()
+    print(f"Collapsed deg bar plot saved to {filepath}")
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
@@ -302,12 +384,13 @@ if __name__ == "__main__":
 
     df = run_3d_bias_experiment(
         config,
-        distances=(0, 20, 45, 90, 135),
-        encoding_epochs_list=(50, 75, 100, 150),
-        nt_loc=30.0,
+        distances=(20, 45, 90, 135),
+        encoding_epochs_list=(50, 100, 150, 200),
+        nt_loc=90.0,
     )
 
     plot_3d_bias(df, metric="Bias_pct")
     plot_3d_bias(df, metric="Bias_deg")
     plot_line_bias(df, metric="Bias_deg")
     plot_line_bias(df, metric="Bias_pct")
+    plot_collapsed_bias_bars(df, epoch_levels=(50, 100, 150, 200))

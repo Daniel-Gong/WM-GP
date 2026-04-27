@@ -1,6 +1,6 @@
 experiment:
   set_sizes: [1, 2, 4, 6]
-  n_trials: 50
+  n_trials: 200
   random_seed: 42
   
 data:

@@ -71,8 +71,8 @@ VDBERG_W = np.array([0.97, 0.95, 0.85, 0.72, 0.55])
 VDBERG_W_SEM = np.array([0.01, 0.02, 0.03, 0.04, 0.05])
 
 # Circular SD in radians
-VDBERG_CSD = np.array([0.10, 0.14, 0.22, 0.33, 0.45])
-VDBERG_CSD_SEM = np.array([0.01, 0.01, 0.02, 0.03, 0.04])
+VDBERG_CSD = np.array([0.24, 0.28, 0.33, 0.34, 0.35])
+VDBERG_CSD_SEM = np.array([0.02, 0.015, 0.02, 0.02, 0.02])
 
 
 def overlay_set_size_mixture():

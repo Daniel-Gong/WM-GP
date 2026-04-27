@@ -1,14 +1,14 @@
 # Fdb version 4
-["bibtex manuscript"] 1776231554.63374 "manuscript.aux" "manuscript.bbl" "manuscript" 1776231555.57236 0
+["bibtex manuscript"] 1777267045.89342 "manuscript.aux" "manuscript.bbl" "manuscript" 1777298151.3078 0
   "../docs/references.bib" 1776217283.1951 89710 f4fdfd05c923a15a02f06a090193523d ""
   "/usr/local/texlive/2024/texmf-dist/bibtex/bst/natbib/unsrtnat.bst" 1233624470 24550 a41a6405f4de768c43e871d9fbce2bc8 ""
-  "manuscript.aux" 1776231555.33604 15566 50b7aca4658ccf3c22123ed53ba7b49d "pdflatex"
+  "manuscript.aux" 1777298151.039 16480 01919258556b76dda58a3903f5922404 "pdflatex"
   (generated)
   "manuscript.bbl"
   "manuscript.blg"
   (rewritten before read)
-["pdflatex"] 1776231554.72959 "/Users/dongyu/Documents/Github/WM-GP/paper/manuscript.tex" "manuscript.pdf" "manuscript" 1776231555.5725 0
-  "/Users/dongyu/Documents/Github/WM-GP/paper/manuscript.tex" 1776231250.35371 46077 fe641087d372529eaed27ad159f6b41d ""
+["pdflatex"] 1777298150.2854 "/Users/dongyu/Documents/Github/WM-GP/paper/manuscript.tex" "manuscript.pdf" "manuscript" 1777298151.30796 0
+  "/Users/dongyu/Documents/Github/WM-GP/paper/manuscript.tex" 1777268081.02139 47223 757071e359c5b71867ff54d138c21cdd ""
   "/usr/local/texlive/2024/texmf-dist/fonts/enc/dvips/cm-super/cm-super-ts1.enc" 1136849721 2900 1537cc8184ad1792082cd229ecc269f4 ""
   "/usr/local/texlive/2024/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/local/texlive/2024/texmf-dist/fonts/tfm/jknappen/ec/tcrm1095.tfm" 1136768653 1536 02c06700a42be0f5a28664c7273f82e7 ""
@@ -132,16 +132,16 @@
   "/usr/local/texlive/2024/texmf-var/fonts/map/pdftex/updmap/pdftex.map" 1726616033.23025 5467645 128b85b7cde5f5edc5cb7f1dd7ff8736 ""
   "/usr/local/texlive/2024/texmf-var/web2c/pdftex/pdflatex.fmt" 1726615989 8221425 3dd1618cb6fd83ea3c24ca26272c4ea5 ""
   "/usr/local/texlive/2024/texmf.cnf" 1710266656 577 e590dabc9e28c5b61546e15f63eebcdf ""
-  "figures/fig1_schematic.pdf" 1776216626.05113 79773 6574d8f683fa673f49c1145428108da5 ""
+  "figures/fig1_schematic.pdf" 1776285721.35023 80676 c59761b8338219185951f18c8d85b400 ""
   "figures/fig2_set_size.pdf" 1776216739.00125 28114 07a659a24e8fa03202b7dc35005d5b5d ""
-  "figures/fig3_retrocue.pdf" 1776216739.5956 39371 15bae93b8df1d4720690ed030f4cbcbb ""
+  "figures/fig3_retrocue.pdf" 1777248079.68673 39679 f338c0f317e5d33091bd066066f2fa9b ""
   "figures/fig4_bias.pdf" 1776216740.04845 21182 6ab9be2990d63e4596f69e0cf0ab44bd ""
-  "figures/fig_human_overlay_setsize.pdf" 1776231425.20825 21741 79b9a629e8fb2a4bb72920558b517ef1 ""
+  "figures/fig_human_overlay_setsize.pdf" 1777294305.97772 21843 ba9aa0e0cd550c29b6aac898c74c8ad3 ""
   "figures/fig_param_sensitivity.pdf" 1776219724.68166 30111 37bfbf39533b42ad3e9918941f34fc6f ""
-  "manuscript.aux" 1776231555.33604 15566 50b7aca4658ccf3c22123ed53ba7b49d "pdflatex"
-  "manuscript.bbl" 1776231554.7272 9596 42083d5ccd4becd3ac7abdbdd6fa0667 "bibtex manuscript"
-  "manuscript.out" 1776231555.33786 2303 5487669e25a01c678b91d44d8f3d425b "pdflatex"
-  "manuscript.tex" 1776231250.35371 46077 fe641087d372529eaed27ad159f6b41d ""
+  "manuscript.aux" 1777298151.039 16480 01919258556b76dda58a3903f5922404 "pdflatex"
+  "manuscript.bbl" 1777267046.02448 9700 b94aec06ec94eeaa7cfd78cdbe205848 "bibtex manuscript"
+  "manuscript.out" 1777298151.04003 2303 5487669e25a01c678b91d44d8f3d425b "pdflatex"
+  "manuscript.tex" 1777268081.02139 47223 757071e359c5b71867ff54d138c21cdd ""
   (generated)
   "manuscript.aux"
   "manuscript.log"
