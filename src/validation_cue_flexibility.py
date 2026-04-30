@@ -99,34 +99,32 @@ def run_flexibility_trial(
     for pg in optimizer.param_groups:
         pg["lr"] = maint_lr
 
-    maint_grid_size = config["model"].get("maint_grid_size", 30)
-    grid_1d = torch.linspace(-180.0, 180.0, maint_grid_size + 1, device=device)[:-1]
-    grid_loc, grid_color = torch.meshgrid(grid_1d, grid_1d, indexing="ij")
-    maint_grid = torch.stack([grid_loc.reshape(-1), grid_color.reshape(-1)], dim=1)
-
+    # Frozen evaluation points & targets from encoding end; inducing points
+    # remain learnable so they can migrate during maintenance.
+    maint_eval_points = model.variational_strategy.inducing_points.detach().clone()
     with torch.no_grad():
-        maint_weights = likelihood(model(maint_grid)).mean.detach()
+        maint_targets = likelihood(model(maint_eval_points)).mean.detach()
 
     attn_module = SpatialProximityAttention(
         spatial_std=config["attention"]["spatial_std"],
         attended_gain=config["attention"]["attended_gain"],
     ).to(device)
 
-    cue_A_weights = attn_module(maint_grid[:, 0], items[cued_idx_A][0])
-    cue_B_weights = attn_module(maint_grid[:, 0], items[cued_idx_B][0])
-    neutral_weights = torch.ones(len(maint_grid), device=device)
+    cue_A_weights = attn_module(maint_eval_points[:, 0], items[cued_idx_A][0])
+    cue_B_weights = attn_module(maint_eval_points[:, 0], items[cued_idx_B][0])
+    neutral_weights = torch.ones(len(maint_eval_points), device=device)
 
     beta = config["training"]["beta"]
     snapshot_post_A = None
 
     for epoch in range(MAINTENANCE_EPOCHS):
         optimizer.zero_grad()
-        output = model(maint_grid)
+        output = model(maint_eval_points)
 
         var_dist = model.variational_strategy.variational_distribution
         prior_dist = model.variational_strategy.prior_distribution
         kl_div = torch.distributions.kl.kl_divergence(var_dist, prior_dist)
-        exp_ll = likelihood.expected_log_prob(maint_weights, output)
+        exp_ll = likelihood.expected_log_prob(maint_targets, output)
 
         if epoch < CUE_A_START:
             attn_w = neutral_weights
@@ -135,7 +133,7 @@ def run_flexibility_trial(
         else:
             attn_w = cue_B_weights
 
-        weighted_ll = (exp_ll * attn_w).sum() / len(maint_grid)
+        weighted_ll = (exp_ll * attn_w).sum() / len(maint_eval_points)
         loss = -weighted_ll + kl_div * beta
         loss.backward()
         optimizer.step()

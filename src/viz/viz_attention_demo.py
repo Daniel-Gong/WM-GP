@@ -29,10 +29,11 @@ def plot_attention_mechanism():
     cued_idx = 0
     cued_location = items[cued_idx][0]
     
-    # 2. Recreate the maintenance grid from simulation.py
-    maint_grid_size = 30  # Actual size used in simulation.py
+    # 2. Dense grid for illustrating attention weight distribution.
+    # (The actual model evaluates at inducing points during maintenance;
+    # this denser grid is purely for visualization clarity.)
+    maint_grid_size = 10
     grid_1d = np.linspace(-180.0, 180.0, maint_grid_size + 1)[:-1]
-    # Center points in bins
     bin_width = 360.0 / maint_grid_size
     grid_1d = grid_1d + bin_width / 2.0
     
@@ -135,7 +136,8 @@ def plot_attention_mechanism():
     
     plt.tight_layout()
     
-    out_dir = os.path.join(os.path.dirname(__file__), '..', 'visualizations', 'attention_demo')
+    _root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    out_dir = os.path.join(_root, 'visualizations', 'attention_demo')
     os.makedirs(out_dir, exist_ok=True)
     
     png_path = os.path.join(out_dir, 'adaptive_computation.png')
