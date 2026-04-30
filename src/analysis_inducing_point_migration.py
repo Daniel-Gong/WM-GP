@@ -118,34 +118,32 @@ def run_trial_with_tracking(items, config, cued_item_idx=0):
     for param_group in optimizer.param_groups:
         param_group['lr'] = maint_lr
 
-    maint_grid_size = config['model'].get('maint_grid_size', 30)
-    grid_1d = torch.linspace(-180.0, 180.0, maint_grid_size + 1, device=device)[:-1]
-    grid_loc, grid_color = torch.meshgrid(grid_1d, grid_1d, indexing='ij')
-    maint_grid = torch.stack([grid_loc.reshape(-1), grid_color.reshape(-1)], dim=1)
-
+    # Fixed evaluation points & targets from encoding end;
+    # inducing points remain learnable so migration can be tracked.
+    maint_eval_points = model.variational_strategy.inducing_points.detach().clone()
     with torch.no_grad():
-        maint_weights = likelihood(model(maint_grid)).mean.detach()
+        maint_targets = likelihood(model(maint_eval_points)).mean.detach()
 
     cued_loc = items[cued_item_idx][0]
     attn = SpatialProximityAttention(
         spatial_std=config['attention']['spatial_std'],
         attended_gain=config['attention']['attended_gain']
     ).to(device)
-    cued_attn_weights = attn(maint_grid[:, 0], cued_loc)
-    neutral_weights = torch.ones(len(maint_grid), device=device)
+    cued_attn_weights = attn(maint_eval_points[:, 0], cued_loc)
+    neutral_weights = torch.ones(len(maint_eval_points), device=device)
 
     cue_start_epoch = config['training']['cue_start_epoch']
     beta = config['training']['beta']
 
     for epoch in range(maintenance_epochs):
         optimizer.zero_grad()
-        output = model(maint_grid)
+        output = model(maint_eval_points)
 
         var_dist = model.variational_strategy.variational_distribution
         prior_dist = model.variational_strategy.prior_distribution
         kl_div = torch.distributions.kl.kl_divergence(var_dist, prior_dist)
 
-        exp_ll = likelihood.expected_log_prob(maint_weights, output)
+        exp_ll = likelihood.expected_log_prob(maint_targets, output)
 
         if epoch >= cue_start_epoch:
             attn_weights = cued_attn_weights
@@ -154,7 +152,7 @@ def run_trial_with_tracking(items, config, cued_item_idx=0):
             attn_weights = neutral_weights
             phase = 'pre_cue'
 
-        weighted_ll = (exp_ll * attn_weights).sum() / len(maint_grid)
+        weighted_ll = (exp_ll * attn_weights).sum() / len(maint_eval_points)
         loss = -weighted_ll + kl_div * beta
         loss.backward()
         optimizer.step()
